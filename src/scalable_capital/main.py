@@ -1,4 +1,5 @@
 import json
+import sys
 from datetime import datetime
 
 from currency_converter import CurrencyConverter
@@ -10,7 +11,8 @@ def to_ecb_rate(ecb_exchange_rate, value):
 
 # Ausschüttungsgleiche Erträge 27,5% (Kennzahlen 936 oder 937)
 def compute_distribution_equivalent_income(config, ecb_exchange_rate, quantity_at_report):
-    return round(to_ecb_rate(ecb_exchange_rate, config["oekb_distribution_equivalent_income_factor"]) * quantity_at_report, 4)
+    return round(
+        to_ecb_rate(ecb_exchange_rate, config["oekb_distribution_equivalent_income_factor"]) * quantity_at_report, 4)
 
 
 # Anzurechnende ausländische (Quellen)Steuer auf Einkünfte,
@@ -25,16 +27,18 @@ def compute_adjustment_factor(config, ecb_exchange_rate):
 
 
 def run():
-    paths_file = open("paths.json")
-    paths = json.load(paths_file)
+    # Path containing the configuration for the script including asset's details.
+    config_path = sys.argv[1]
+    # Path containing the Scalable Capital JSON dump of https://de.scalable.capital/broker/api/data.
+    data_path = sys.argv[2]
 
-    config_file = open(paths["config"])
+    config_file = open(config_path)
     config = json.load(config_file)
 
-    data_file = open(paths["data"])
+    data_file = open(data_path)
     data = json.load(data_file)
 
-    # Extract transactions from JSON data
+    # Extract transactions from JSON data from Scalable
     transactions = data[0]["data"]["account"]["brokerPortfolios"][0]["moreTransactions"]['transactions']
 
     # Convert the given string date to datetime object
@@ -49,11 +53,21 @@ def run():
     moving_average_price = round(config["starting_moving_avg_price"], 4)
 
     # ECB exchange rate from USD to EUR
+    oekb_report_currency = config.get("oekb_report_currency", "EUR")
     ecb_exchange_rate = round(
-        CurrencyConverter().convert(1, config.get("oekb_report_currency", "EUR"), date=oekb_report_date), 4)
-    print(f"Using exchange rate USD -> EUR of {ecb_exchange_rate} at {oekb_report_date.strftime('%d/%m/%Y')}\n")
+        CurrencyConverter().convert(1, oekb_report_currency, date=oekb_report_date), 4)
 
-    # For each transaction we compute the quantity, share price and total price and we filter out the ones outside of
+    print("ETF Taxes Calculator\n")
+
+    print("-- DETAILS --\n")
+
+    print(f"Distribution equivalent income factor: {config['oekb_distribution_equivalent_income_factor']}")
+    print(f"Taxes paid abroad factor: {config['oekb_taxes_paid_abroad_factor']}")
+    print(f"Adjustment factor: {config['oekb_adjustment_factor']}")
+    print(
+        f"Exchange rate ({oekb_report_currency} -> EUR) at OEKB report {oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate}\n")
+
+    # For each transaction we compute the quantity, share price and total price, and we filter out the ones outside
     # the time interval.
     computed_transactions = []
     for transaction in transactions:
@@ -65,6 +79,7 @@ def run():
         if start_date <= date <= end_date:
             computed_transactions.append((date, quantity, share_price, total_price))
 
+    # We sort the transactions in ascending date of execution.
     computed_transactions.sort(key=lambda t: t[0])
 
     # We insert the adjustment factor in the list of transactions.
@@ -74,9 +89,12 @@ def run():
             insertion_index = index + 1
     computed_transactions.insert(insertion_index, compute_adjustment_factor(config, ecb_exchange_rate))
 
+    print("-- TRANSACTIONS --\n")
+
     print("Date  Quantity  Share Price  |  Total Price  Moving Average Price\n")
     for value in computed_transactions:
         # TODO: add calculation of capital gains when selling.
+        # If the value is a number, it means this is an adjustment transaction.
         if isinstance(value, float):
             prev_moving_average_price = moving_average_price
             moving_average_price += value
@@ -99,14 +117,14 @@ def run():
             input()
 
     print("-- CAPITAL GAINS --\n")
+
     print(
         f"Distribution equivalent income (936 or 937): {compute_distribution_equivalent_income(config, ecb_exchange_rate, total_quantity_before_report)}")
     print(
-        f"Taxes paid abroad (984 or 998): {compute_taxes_paid_abroad(config, ecb_exchange_rate, total_quantity_before_report)}")
-
-    print("")
+        f"Taxes paid abroad (984 or 998): {compute_taxes_paid_abroad(config, ecb_exchange_rate, total_quantity_before_report)}\n")
 
     print("-- STATS --\n")
+
     print(
         f"Total shares before OKB report on {oekb_report_date.strftime('%d/%m/%Y')}: {total_quantity_before_report}")
 
