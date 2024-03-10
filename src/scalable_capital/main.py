@@ -23,7 +23,7 @@ def compute_taxes_paid_abroad(config, ecb_exchange_rate, quantity_at_report):
 
 # Die Anschaffungskosten des Fondsanteils sind zu korrigieren um
 def compute_adjustment_factor(config, ecb_exchange_rate):
-    return to_ecb_rate(ecb_exchange_rate, config["oekb_adjustment_factor"])
+    return round(to_ecb_rate(ecb_exchange_rate, config["oekb_adjustment_factor"]), 4)
 
 
 def run():
