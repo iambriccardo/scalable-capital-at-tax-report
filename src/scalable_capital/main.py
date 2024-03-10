@@ -76,6 +76,7 @@ def run():
 
     print("Date  Quantity  Share Price  |  Total Price  Moving Average Price\n")
     for value in computed_transactions:
+        # TODO: add calculation of capital gains when selling.
         if isinstance(value, float):
             prev_moving_average_price = moving_average_price
             moving_average_price += value
