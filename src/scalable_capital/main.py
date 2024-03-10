@@ -21,10 +21,13 @@ def compute_adjustment_factor(config):
 
 
 def run():
-    config_file = open("config.json")
+    paths_file = open("paths.json")
+    paths = json.load(paths_file)
+
+    config_file = open(paths["config"])
     config = json.load(config_file)
 
-    data_file = open(config["scalable_capital_json"])
+    data_file = open(paths["data"])
     data = json.load(data_file)
 
     # Extract transactions from JSON data
