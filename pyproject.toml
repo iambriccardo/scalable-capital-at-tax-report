@@ -5,7 +5,9 @@ description = "Add your description here"
 authors = [
     { name = "Riccardo Busetti", email = "riccardo.busetti@sentry.io" }
 ]
-dependencies = []
+dependencies = [
+    "currencyconverter>=0.17.17",
+]
 readme = "README.md"
 requires-python = ">= 3.8"
 

@@ -1,23 +1,27 @@
 import json
 from datetime import datetime
 
-def to_ecb_rate(config, value):
-    return round(value * config["ecb_conversion_factor"], 4)
+from currency_converter import CurrencyConverter
+
+
+def to_ecb_rate(ecb_exchange_rate, value):
+    return round(ecb_exchange_rate * value, 4)
+
 
 # Ausschüttungsgleiche Erträge 27,5% (Kennzahlen 936 oder 937)
-def compute_distribution_equivalent_income(config, quantity_at_report):
-    return round(to_ecb_rate(config, config["oekb_distribution_equivalent_income_factor"]) * quantity_at_report, 4)
+def compute_distribution_equivalent_income(config, ecb_exchange_rate, quantity_at_report):
+    return round(to_ecb_rate(ecb_exchange_rate, config["oekb_distribution_equivalent_income_factor"]) * quantity_at_report, 4)
 
 
 # Anzurechnende ausländische (Quellen)Steuer auf Einkünfte,
-# die dem besonderen Steuersatz von 27,5% unterliegen (Kennzahl 984 oder 998
-def compute_taxes_paid_abroad(config, quantity_at_report):
-    return round(to_ecb_rate(config, config["oekb_taxes_paid_abroad_factor"]) * quantity_at_report, 4)
+# die dem besonderen Steuersatz von 27,5% unterliegen (Kennzahl 984 oder 998)
+def compute_taxes_paid_abroad(config, ecb_exchange_rate, quantity_at_report):
+    return round(to_ecb_rate(ecb_exchange_rate, config["oekb_taxes_paid_abroad_factor"]) * quantity_at_report, 4)
 
 
 # Die Anschaffungskosten des Fondsanteils sind zu korrigieren um
-def compute_adjustment_factor(config):
-    return round(config["oekb_adjustment_factor"] * config["ecb_conversion_factor"], 4)
+def compute_adjustment_factor(config, ecb_exchange_rate):
+    return to_ecb_rate(ecb_exchange_rate, config["oekb_adjustment_factor"])
 
 
 def run():
@@ -44,6 +48,11 @@ def run():
     total_quantity_before_report = total_quantity
     moving_average_price = round(config["starting_moving_avg_price"], 4)
 
+    # ECB exchange rate from USD to EUR
+    ecb_exchange_rate = round(
+        CurrencyConverter().convert(1, config.get("oekb_report_currency", "EUR"), date=oekb_report_date), 4)
+    print(f"Using exchange rate USD -> EUR of {ecb_exchange_rate} at {oekb_report_date.strftime('%d/%m/%Y')}\n")
+
     # For each transaction we compute the quantity, share price and total price and we filter out the ones outside of
     # the time interval.
     computed_transactions = []
@@ -63,7 +72,7 @@ def run():
     for index, value in enumerate(computed_transactions):
         if oekb_report_date >= value[0]:
             insertion_index = index + 1
-    computed_transactions.insert(insertion_index, compute_adjustment_factor(config))
+    computed_transactions.insert(insertion_index, compute_adjustment_factor(config, ecb_exchange_rate))
 
     print("Date  Quantity  Share Price  |  Total Price  Moving Average Price\n")
     for value in computed_transactions:
@@ -71,7 +80,7 @@ def run():
             prev_moving_average_price = moving_average_price
             moving_average_price += value
             print(
-                f"{oekb_report_date.strftime('%d/%m/%Y')} adjusting moving average price from {prev_moving_average_price} to {moving_average_price}\n")
+                f"{oekb_report_date.strftime('%d/%m/%Y')}  |  Adjusting moving average price from {prev_moving_average_price} to {moving_average_price}\n")
         else:
             date, quantity, share_price, total_price = value
 
@@ -85,14 +94,14 @@ def run():
 
             formatted_date = date.strftime("%d/%m/%Y")
             print(
-                f"{formatted_date}  {quantity}  {share_price}  |  {total_price}  {moving_average_price}")
+                f"{formatted_date}  |  {quantity}  {share_price}  |  {total_price}  {moving_average_price}")
             input()
-
 
     print("-- CAPITAL GAINS --\n")
     print(
-        f"Distribution equivalent income (936 or 937): {compute_distribution_equivalent_income(config, total_quantity_before_report)}")
-    print(f"Taxes paid abroad (984 or 998): {compute_taxes_paid_abroad(config, total_quantity_before_report)}")
+        f"Distribution equivalent income (936 or 937): {compute_distribution_equivalent_income(config, ecb_exchange_rate, total_quantity_before_report)}")
+    print(
+        f"Taxes paid abroad (984 or 998): {compute_taxes_paid_abroad(config, ecb_exchange_rate, total_quantity_before_report)}")
 
     print("")
 
