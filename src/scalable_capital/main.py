@@ -83,7 +83,7 @@ def compute_taxes(config_file, data_file):
     print(f"Distribution equivalent income factor: {config['oekb_distribution_equivalent_income_factor']}")
     print(f"Taxes paid abroad factor: {config['oekb_taxes_paid_abroad_factor']}")
     print(f"Adjustment factor: {config['oekb_adjustment_factor']}\n")
-    
+
     print(
         f"Exchange rate ({oekb_report_currency} -> EUR) at OEKB report {oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate}")
 
