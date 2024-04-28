@@ -1,8 +1,34 @@
 import json
 import sys
+import os
 from datetime import datetime
 
 from currency_converter import CurrencyConverter
+
+def partition_files(folder_path):
+    config_files = {}
+    data_files = {}
+
+    # Iterate through files in the folder
+    for filename in os.listdir(folder_path):
+        full_path = os.path.join(folder_path, filename)
+        if os.path.isfile(full_path):
+            # Split filename into name and extension
+            name, ext = os.path.splitext(filename)
+            # Check if file starts with 'config_' or 'data_'
+            if name.startswith('config_'):
+                config_files.setdefault(name[7:], [None] * 2)[0] = open(full_path)
+            elif name.startswith('data_'):
+                data_files.setdefault(name[5:], [None] * 2)[1] = open(full_path)
+
+    # Pair config and data files with same suffix
+    paired_files = []
+    for suffix in sorted(set(config_files.keys()) & set(data_files.keys())):
+        config = config_files[suffix][0]
+        data = data_files[suffix][1]
+        paired_files.append((config, data))
+
+    return paired_files
 
 
 def to_ecb_rate(ecb_exchange_rate, value):
@@ -26,16 +52,8 @@ def compute_adjustment_factor(config, ecb_exchange_rate):
     return round(to_ecb_rate(ecb_exchange_rate, config["oekb_adjustment_factor"]), 4)
 
 
-def run():
-    # Path containing the configuration for the script including asset's details.
-    config_path = sys.argv[1]
-    # Path containing the Scalable Capital JSON dump of https://de.scalable.capital/broker/api/data.
-    data_path = sys.argv[2]
-
-    config_file = open(config_path)
+def compute_taxes(config_file, data_file):
     config = json.load(config_file)
-
-    data_file = open(data_path)
     data = json.load(data_file)
 
     # Extract transactions from JSON data from Scalable
@@ -57,15 +75,17 @@ def run():
     ecb_exchange_rate = round(
         CurrencyConverter().convert(1, oekb_report_currency, date=oekb_report_date), 4)
 
-    print("ETF Taxes Calculator\n")
+    print("\n\n\n -- DETAILS --\n")
 
-    print("-- DETAILS --\n")
+    print(f"Config: {os.path.basename(config_file.name)}")
+    print(f"Data: {os.path.basename(data_file.name)}\n")
 
     print(f"Distribution equivalent income factor: {config['oekb_distribution_equivalent_income_factor']}")
     print(f"Taxes paid abroad factor: {config['oekb_taxes_paid_abroad_factor']}")
-    print(f"Adjustment factor: {config['oekb_adjustment_factor']}")
+    print(f"Adjustment factor: {config['oekb_adjustment_factor']}\n")
+    
     print(
-        f"Exchange rate ({oekb_report_currency} -> EUR) at OEKB report {oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate}\n")
+        f"Exchange rate ({oekb_report_currency} -> EUR) at OEKB report {oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate}")
 
     # For each transaction we compute the quantity, share price and total price, and we filter out the ones outside
     # the time interval.
@@ -89,18 +109,23 @@ def run():
             insertion_index = index + 1
     computed_transactions.insert(insertion_index, compute_adjustment_factor(config, ecb_exchange_rate))
 
-    print("-- TRANSACTIONS --\n")
+    print("\n -- TRANSACTIONS --\n")
 
     print("Date  Quantity  Share Price  |  Total Price  Moving Average Price\n")
+
+    print(
+        f"{config.get('start_date')}  |  {config.get('starting_quantity')}  N/A  |  N/A  {config.get('starting_moving_avg_price')}")
+
     for value in computed_transactions:
         # TODO: add calculation of capital gains when selling.
+
         # If the value is a number, it means this is an adjustment transaction.
-        if isinstance(value, float):
+        if isinstance(value, float) and total_quantity != 0.0:
             prev_moving_average_price = moving_average_price
             moving_average_price += value
             print(
-                f"{oekb_report_date.strftime('%d/%m/%Y')}  |  Adjusting moving average price from {prev_moving_average_price} to {moving_average_price}\n")
-        else:
+                f"{oekb_report_date.strftime('%d/%m/%Y')}  |  Adjusting moving average price with factor {value} from {prev_moving_average_price} to {moving_average_price}")
+        elif not isinstance(value, float):
             date, quantity, share_price, total_price = value
 
             moving_average_price = round(
@@ -114,22 +139,49 @@ def run():
             formatted_date = date.strftime("%d/%m/%Y")
             print(
                 f"{formatted_date}  |  {quantity}  {share_price}  |  {total_price}  {moving_average_price}")
-            input()
 
-    print("-- CAPITAL GAINS --\n")
+    print("\n -- CAPITAL GAINS --\n")
 
+    distribution_equivalent_income = compute_distribution_equivalent_income(config, ecb_exchange_rate, total_quantity_before_report)
     print(
-        f"Distribution equivalent income (936 or 937): {compute_distribution_equivalent_income(config, ecb_exchange_rate, total_quantity_before_report)}")
-    print(
-        f"Taxes paid abroad (984 or 998): {compute_taxes_paid_abroad(config, ecb_exchange_rate, total_quantity_before_report)}\n")
+        f"Distribution equivalent income (936 or 937): {distribution_equivalent_income}")
 
-    print("-- STATS --\n")
+    taxes_paid_abroad = compute_taxes_paid_abroad(config, ecb_exchange_rate, total_quantity_before_report)
+    print(
+        f"Taxes paid abroad (984 or 998): {taxes_paid_abroad}")
+
+    print("\n -- STATS --\n")
 
     print(
         f"Total shares before OKB report on {oekb_report_date.strftime('%d/%m/%Y')}: {total_quantity_before_report}")
 
     print(f"Total shares: {total_quantity}")
 
+    return distribution_equivalent_income, taxes_paid_abroad
+
 
 if __name__ == '__main__':
-    run()
+    folder_path = sys.argv[1]
+
+    if not os.path.isdir(folder_path):
+        print("Error: Invalid folder path.")
+    else:
+        paired_files = partition_files(folder_path)
+
+        total_distribution_equivalent_income = 0
+        total_taxes_paid_abroad = 0
+        for config_file, data_file in paired_files:
+            distribution_equivalent_income, taxes_paid_abroad = compute_taxes(config_file, data_file)
+            total_distribution_equivalent_income += distribution_equivalent_income
+            total_taxes_paid_abroad += taxes_paid_abroad
+
+        print("\n -- TOTAL STATS --\n")
+
+        # We have to round to 2 decimals since this is what Finanzonline expects.
+        print(
+            f"Total distribution equivalent income (936 or 937): {round(total_distribution_equivalent_income, 2)}")
+
+        print(
+            f"Total taxes paid abroad (984 or 998): {round(total_taxes_paid_abroad, 2)}\n")
+
+        print(f"Projected taxes to pay: {round((total_distribution_equivalent_income - total_taxes_paid_abroad) * 0.275, 2)}\n")
