@@ -6,7 +6,7 @@ the needed information for filing the yearly tax return (E1kv).
 
 ## Usage
 
-1. Create a configuration file in `.json` format with the following information:
+1. Create a configuration file in `.json` format with the following information (the filename must start with `config`):
     ```json
     {
       // Date ranges in which you want to compute the report.
@@ -28,11 +28,11 @@ the needed information for filing the yearly tax return (E1kv).
 
 2. Go to your Scalable Capital asset and in the network tab copy the response of the call to
 `https://de.scalable.capital/broker/api/data` where the request includes in the body the `operationName`
-named `moreTransactions`.
+named `moreTransactions`. You must copy the response in a `.json` file with the name starting with `data`.
 
-3. Launch the script by specifying the path of the configuration and data jsons.
+3. Launch the script by specifying the path of the folder containing both config and data jsons.
    ```shell
-   python src/scalable_capital/main.py config_file.json data_file.json
+   python src/scalable_capital/main.py path/to/config/folder
    ```
    
 ## TODOs
@@ -40,3 +40,4 @@ named `moreTransactions`.
 There are still a few todos for the script:
 * Add support for handling capital gains derived from selling.
 * Add support for fetching OEKB data directly from their API.
+* Add support for multiple reportings in a year.
