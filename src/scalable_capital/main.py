@@ -182,6 +182,6 @@ if __name__ == '__main__':
             f"Total distribution equivalent income (936 or 937): {round(total_distribution_equivalent_income, 2)}")
 
         print(
-            f"Total taxes paid abroad (984 or 998): {round(total_taxes_paid_abroad, 2)}\n")
+            f"Total taxes paid abroad (984 or 998): {round(total_taxes_paid_abroad, 3)}\n")
 
-        print(f"Projected taxes to pay: {round((total_distribution_equivalent_income - total_taxes_paid_abroad) * 0.275, 2)}\n")
+        print(f"Projected taxes to pay: {round((total_distribution_equivalent_income * 0.275) - total_taxes_paid_abroad, 2)}\n")
