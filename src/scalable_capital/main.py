@@ -51,13 +51,22 @@ def compute_taxes_paid_abroad(config, ecb_exchange_rate, quantity_at_report):
 def compute_adjustment_factor(config, ecb_exchange_rate):
     return round(to_ecb_rate(ecb_exchange_rate, config["oekb_adjustment_factor"]), 4)
 
+def find_more_transactions(data):
+    transactions = []
+
+    for entry in data:
+        first_portfolio = entry["data"]["account"]["brokerPortfolios"][0]
+        if "moreTransactions" in first_portfolio:
+            transactions.extend(first_portfolio["moreTransactions"]['transactions'])
+
+    return transactions
 
 def compute_taxes(config_file, data_file):
     config = json.load(config_file)
     data = json.load(data_file)
 
     # Extract transactions from JSON data from Scalable
-    transactions = data[0]["data"]["account"]["brokerPortfolios"][0]["moreTransactions"]['transactions']
+    transactions = find_more_transactions(data)
 
     # Convert the given string date to datetime object
     start_date = datetime.strptime(config["start_date"], "%d/%m/%Y").replace(tzinfo=None)
@@ -91,6 +100,10 @@ def compute_taxes(config_file, data_file):
     # the time interval.
     computed_transactions = []
     for transaction in transactions:
+        if transaction["side"] != "BUY" or transaction["status"] != "SETTLED":
+            print(f"\n[ERROR]: Skipping transaction with side = {transaction['side']}, status={transaction['status']}")
+            continue
+
         date = datetime.fromisoformat(transaction['lastEventDateTime']).replace(tzinfo=None)
         quantity = transaction["quantity"]
         total_price = abs(transaction["amount"])
@@ -107,6 +120,8 @@ def compute_taxes(config_file, data_file):
     for index, value in enumerate(computed_transactions):
         if oekb_report_date >= value[0]:
             insertion_index = index + 1
+
+    # We insert at the computed index.
     computed_transactions.insert(insertion_index, compute_adjustment_factor(config, ecb_exchange_rate))
 
     print("\n -- TRANSACTIONS --\n")
@@ -119,7 +134,8 @@ def compute_taxes(config_file, data_file):
     for value in computed_transactions:
         # TODO: add calculation of capital gains when selling.
 
-        # If the value is a number, it means this is an adjustment transaction.
+        # If the value is a number, it means this is an adjustment transaction. We also don't want to adjust if the
+        # total quantity at the time of the report is 0.
         if isinstance(value, float) and total_quantity != 0.0:
             prev_moving_average_price = moving_average_price
             moving_average_price += value
