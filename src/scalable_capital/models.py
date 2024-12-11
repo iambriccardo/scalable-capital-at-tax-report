@@ -124,3 +124,26 @@ class Config:
             starting_moving_avg_price=float(data['starting_moving_avg_price']),
             isin=data['isin']
         )
+
+
+@dataclass
+class ComputedTransaction:
+    """Represents a processed transaction with computed values."""
+    date: datetime
+    quantity: float
+    share_price: float
+    total_price: float
+
+    @classmethod
+    def from_transaction(cls, transaction: 'Transaction') -> 'ComputedTransaction':
+        """Create a ComputedTransaction from a Transaction."""
+        quantity = float(transaction.shares)
+        total_price = abs(float(transaction.amount))
+        share_price = round(total_price / quantity, 4)
+        
+        return cls(
+            date=transaction.date,
+            quantity=quantity,
+            share_price=share_price,
+            total_price=total_price
+        )

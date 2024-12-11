@@ -9,6 +9,7 @@ from typing import List
 
 from scalable_capital.models import Config
 from scalable_capital.tax_calculator import TaxCalculator
+from scalable_capital.excel_report import generate_excel_report
 
 
 def load_configs(config_path: str) -> List[Config]:
@@ -20,12 +21,14 @@ def load_configs(config_path: str) -> List[Config]:
 
 def main():
     """Main entry point for the tax calculator."""
-    if len(sys.argv) != 3:
-        print("Usage: python main.py <config_file> <transactions_csv>")
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        print("Usage: python main.py <config_file> <transactions_csv> [excel_output]")
+        print("  excel_output: Optional path for Excel report output")
         sys.exit(1)
 
     configs_path = sys.argv[1]
     csv_path = sys.argv[2]
+    excel_path = sys.argv[3] if len(sys.argv) == 4 else None
 
     # Validate input files
     if not os.path.isfile(configs_path):
@@ -35,10 +38,21 @@ def main():
         print("Error: Invalid CSV file path.")
         sys.exit(1)
 
-    # Initialize and run calculator
+    # Load configurations
     configs = load_configs(configs_path)
+
+    # Initialize and run calculator
     calculator = TaxCalculator(configs, csv_path)
     calculator.calculate_taxes()
+
+    # Generate Excel report if requested
+    if excel_path:
+        try:
+            generate_excel_report(configs, csv_path, excel_path)
+            print(f"\nExcel report generated successfully: {excel_path}")
+        except Exception as e:
+            print(f"\nError generating Excel report: {str(e)}")
+            sys.exit(1)
 
 
 if __name__ == '__main__':

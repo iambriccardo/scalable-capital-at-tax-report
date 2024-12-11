@@ -5,11 +5,11 @@ Handles computation of distribution equivalent income and foreign taxes.
 import csv
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 
 from currency_converter import CurrencyConverter
 
-from scalable_capital.models import Transaction, Config, TransactionType
+from scalable_capital.models import Transaction, Config, TransactionType, ComputedTransaction
 
 
 class TaxCalculator:
@@ -185,7 +185,7 @@ class TaxCalculator:
         print(
             f"Exchange rate ({config.oekb_report_currency} → EUR) at {config.oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate:.4f}")
 
-    def _print_transactions(self, config: Config, computed_transactions: list,
+    def _print_transactions(self, config: Config, computed_transactions: List[Union[ComputedTransaction, float]],
                             total_quantity: float, moving_average_price: float) -> None:
         """Print the transaction details including headers and computed values."""
         print("\n" + "=" * 80)
@@ -206,10 +206,10 @@ class TaxCalculator:
                 moving_average_price += value
                 print(
                     f"\n{config.oekb_report_date.strftime('%d/%m/%Y')} - Adjustment: {value:+.4f} → New moving average: {moving_average_price:.4f}")
-            elif not isinstance(value, float):
-                date, quantity, share_price, total_price = value
+            elif isinstance(value, ComputedTransaction):
                 print(
-                    f"{date.strftime('%d/%m/%Y'):12} {quantity:>10.3f} {share_price:>12.4f} {total_price:>12.2f} {moving_average_price:>12.4f}")
+                    f"{value.date.strftime('%d/%m/%Y'):12} {value.quantity:>10.3f} {value.share_price:>12.4f} "
+                    f"{value.total_price:>12.2f} {moving_average_price:>12.4f}")
 
     def _print_capital_gains(self, distribution_equivalent_income: float, taxes_paid_abroad: float) -> None:
         """Print the capital gains information."""
@@ -246,7 +246,7 @@ class TaxCalculator:
         print(f"\n{'Projected taxes to pay:':<50} {projected:>10.2f} EUR")
         print("\nNote: All amounts are rounded to 2 decimal places as required by Finanzonline.")
 
-    def _prepare_transactions(self, isin_transactions: List[Transaction], config: Config) -> list:
+    def _prepare_transactions(self, isin_transactions: List[Transaction], config: Config) -> List[Union[ComputedTransaction, float]]:
         """Prepare and validate transactions for processing."""
         computed_transactions = []
         for transaction in isin_transactions:
@@ -255,21 +255,16 @@ class TaxCalculator:
                     f"\n[ERROR]: Skipping transaction with type = {transaction.type.value}, status={transaction.status}")
                 continue
 
-            date = transaction.date
-            quantity = float(transaction.shares)  # Convert Decimal to float for compatibility
-            total_price = abs(float(transaction.amount))
-            share_price = round(total_price / quantity, 4)
+            if config.start_date <= transaction.date <= config.end_date:
+                computed_transactions.append(ComputedTransaction.from_transaction(transaction))
 
-            if config.start_date <= date <= config.end_date:
-                computed_transactions.append((date, quantity, share_price, total_price))
+        return sorted(computed_transactions, key=lambda t: t.date)
 
-        return sorted(computed_transactions, key=lambda t: t[0])
-
-    def _insert_adjustment_factor(self, computed_transactions: list, config: Config, ecb_exchange_rate: float) -> list:
+    def _insert_adjustment_factor(self, computed_transactions: List[Union[ComputedTransaction, float]], config: Config, ecb_exchange_rate: float) -> List[Union[ComputedTransaction, float]]:
         """Insert the adjustment factor at the appropriate position in the transaction list."""
         insertion_index = 0
         for index, value in enumerate(computed_transactions):
-            if config.oekb_report_date >= value[0]:
+            if config.oekb_report_date >= value.date:
                 insertion_index = index + 1
 
         computed_transactions.insert(
@@ -278,23 +273,23 @@ class TaxCalculator:
         )
         return computed_transactions
 
-    def _calculate_positions(self, computed_transactions: list, config: Config,
+    def _calculate_positions(self, computed_transactions: List[Union[ComputedTransaction, float]], config: Config,
                              total_quantity: float, total_quantity_before_report: float,
                              moving_average_price: float) -> Tuple[float, float, float]:
         """Calculate positions based on transactions."""
         for value in computed_transactions:
             if isinstance(value, float) and total_quantity != 0.0:
                 moving_average_price += value
-            elif not isinstance(value, float):
-                date, quantity, share_price, total_price = value
+            elif isinstance(value, ComputedTransaction):
                 moving_average_price = round(
-                    ((total_quantity * moving_average_price) + (quantity * share_price)) / (total_quantity + quantity),
+                    ((total_quantity * moving_average_price) + (value.quantity * value.share_price)) / 
+                    (total_quantity + value.quantity),
                     4)
 
-                if date <= config.oekb_report_date:
-                    total_quantity_before_report = round(total_quantity_before_report + quantity, 3)
+                if value.date <= config.oekb_report_date:
+                    total_quantity_before_report = round(total_quantity_before_report + value.quantity, 3)
 
-                total_quantity = round(total_quantity + quantity, 3)
+                total_quantity = round(total_quantity + value.quantity, 3)
 
         return total_quantity, total_quantity_before_report, moving_average_price
 
