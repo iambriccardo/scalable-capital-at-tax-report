@@ -6,33 +6,34 @@ the needed information for filing the yearly tax return (E1kv).
 
 ## Usage
 
-1. Create a configuration file in `.json` format with the following information (the filename must start with `config`):
+1. Create a configuration file in `.json` format containing an array of fund configurations:
     ```json
-    {
-      // Date ranges in which you want to compute the report.
-      "start_date": "01/01/2023",
-      "end_date": "31/12/2023",
-      // Data from the OEKB website for your ETF
-      "oekb_report_date": "17/08/2023",
-      "oekb_distribution_equivalent_income_factor": 0.8649,
-      "oekb_taxes_paid_abroad_factor": 0.0723,
-      "oekb_adjustment_factor": 0.7609,
-      "oekb_report_currency": "USD",
-      // The quantity and previously computed moving average price at the 31st december
-      // of the previous year.
-      "starting_quantity": 8.591,
-      "starting_moving_avg_price": 27.927
-    }
-    
+    [
+      {
+        // Date ranges in which you want to compute the report.
+        "start_date": "01/01/2023",
+        "end_date": "31/12/2023",
+        // Data from the OEKB website for your ETF
+        "oekb_report_date": "17/08/2023",
+        "oekb_distribution_equivalent_income_factor": 0.8649,
+        "oekb_taxes_paid_abroad_factor": 0.0723,
+        "oekb_adjustment_factor": 0.7609,
+        "oekb_report_currency": "USD",
+        // The quantity and previously computed moving average price at the 31st december
+        // of the previous year.
+        "starting_quantity": 8.591,
+        "starting_moving_avg_price": 27.927,
+        // The ISIN of the fund
+        "isin": "IE00B4L5Y983"
+      }
+    ]
     ```
 
-2. Go to your Scalable Capital asset and in the network tab copy the response of the call to
-`https://de.scalable.capital/broker/api/data` where the request includes in the body the `operationName`
-named `moreTransactions`. You must copy the response in a `.json` file with the name starting with `data`.
+2. Save your transaction data in a CSV file containing all transactions for all funds.
 
-3. Launch the script by specifying the path of the folder containing both config and data jsons.
+3. Launch the script by specifying both the config file and the CSV file:
    ```shell
-   python src/scalable_capital/main.py path/to/config/folder
+   python src/scalable_capital/main.py path/to/config.json path/to/transactions.csv
    ```
    
 ## TODOs
