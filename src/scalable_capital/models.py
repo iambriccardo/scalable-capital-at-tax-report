@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 from enum import Enum, auto
+from typing import Optional
+
 
 class TransactionType(str, Enum):
     WITHDRAWAL = "Withdrawal"
@@ -18,14 +19,14 @@ class TransactionType(str, Enum):
         for member in cls:
             if member.value.lower() == value.lower():
                 return member
-            
+
         print(f"Unknown transaction type: {value}")
-        
+
         return None
-    
+
     def is_buy(self) -> bool:
         return self in [TransactionType.BUY, TransactionType.SAVINGS_PLAN]
-    
+
     def excluded(self) -> bool:
         return self in [
             TransactionType.WITHDRAWAL,
@@ -35,6 +36,7 @@ class TransactionType(str, Enum):
             # TODO: add support for SELL later.
             TransactionType.SELL
         ]
+
 
 @dataclass
 class Transaction:
@@ -58,13 +60,13 @@ class Transaction:
         # Parse date combining date and time fields
         date_str = f"{row['date']} {row['time']}"
         date = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
-        
+
         def parse_decimal(value: str) -> Decimal:
             if not value:
                 return Decimal('0')
             # Convert European number format (1.234,56) to standard decimal (1234.56)
             return Decimal(value.replace('.', '').replace(',', '.'))
-        
+
         return cls(
             date=date,
             time=row['time'],
@@ -81,6 +83,7 @@ class Transaction:
             tax=parse_decimal(row.get('tax', '0')),
             currency=row['currency']
         )
+
 
 @dataclass
 class Config:
@@ -120,4 +123,4 @@ class Config:
             starting_quantity=float(data['starting_quantity']),
             starting_moving_avg_price=float(data['starting_moving_avg_price']),
             isin=data['isin']
-        ) 
+        )
