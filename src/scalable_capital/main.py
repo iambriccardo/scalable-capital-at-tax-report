@@ -43,12 +43,12 @@ def main():
 
     # Initialize and run calculator
     calculator = TaxCalculator(configs, csv_path)
-    calculator.calculate_taxes()
+    tax_results = calculator.calculate_taxes()
 
     # Generate Excel report if requested
     if excel_path:
         try:
-            generate_excel_report(configs, csv_path, excel_path)
+            generate_excel_report(tax_results, excel_path)
             print(f"\nExcel report generated successfully: {excel_path}")
         except Exception as e:
             print(f"\nError generating Excel report: {str(e)}")

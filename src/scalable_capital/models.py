@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum, auto
-from typing import Optional
+from typing import Optional, List, Union
 
 
 class TransactionType(str, Enum):
@@ -135,7 +135,7 @@ class ComputedTransaction:
         self.quantity = quantity
         self.share_price = share_price
         self.total_price = total_price
-        self.moving_average_price: float = 0.0
+        self.moving_avg_price: float = 0.0
     
     @classmethod
     def from_transaction(cls, transaction: Transaction) -> 'ComputedTransaction':
@@ -150,3 +150,31 @@ class ComputedTransaction:
             share_price=share_price,
             total_price=total_price
         )
+
+
+@dataclass
+class TaxCalculationResult:
+    """Represents the complete tax calculation result for a single fund."""
+    isin: str
+    report_date: datetime
+    distribution_equivalent_income_factor: float
+    taxes_paid_abroad_factor: float
+    adjustment_factor: float
+    report_currency: str
+    ecb_exchange_rate: float
+    
+    # Computed values
+    distribution_equivalent_income: float
+    taxes_paid_abroad: float
+    
+    # Quantities
+    starting_quantity: float
+    quantity_at_report: float
+    final_quantity: float
+    
+    # Moving average prices
+    starting_moving_avg_price: float
+    final_moving_avg_price: float
+    
+    # All transactions including adjustment factor
+    computed_transactions: List[Union[ComputedTransaction, float]]
