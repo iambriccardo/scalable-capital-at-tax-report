@@ -3,13 +3,11 @@ Tax calculator for Austrian investment funds based on OeKB reports.
 Handles computation of distribution equivalent income and foreign taxes.
 """
 import csv
-from datetime import datetime
-from decimal import Decimal
-from typing import List, Tuple, Optional, Union
+from typing import List, Tuple, Union
 
 from currency_converter import CurrencyConverter
 
-from scalable_capital.models import Transaction, Config, TransactionType, ComputedTransaction, TaxCalculationResult
+from scalable_capital.models import Transaction, Config, ComputedTransaction, TaxCalculationResult
 
 
 class TaxCalculator:
@@ -133,7 +131,7 @@ class TaxCalculator:
             total_quantity_before_report,
             starting_moving_avg_price
         )
-        
+
         # Print transactions
         self._print_transactions(config, computed_transactions, total_quantity)
 
@@ -143,7 +141,7 @@ class TaxCalculator:
             ecb_exchange_rate,
             total_quantity_before_report
         )
-        
+
         # Print capital gains and stats
         self._print_capital_gains(distribution_equivalent_income, taxes_paid_abroad)
         self._print_stats(config, total_quantity_before_report, total_quantity)
@@ -188,7 +186,7 @@ class TaxCalculator:
             total_taxes_paid_abroad += result.taxes_paid_abroad
 
         self._print_final_summary(total_distribution_equivalent_income, total_taxes_paid_abroad)
-        
+
         return results
 
     def _print_fund_details(self, config: Config, ecb_exchange_rate: float) -> None:
@@ -242,7 +240,7 @@ class TaxCalculator:
         # We have to round to 2 decimals since this is what Finanzonline expects
         dei = round(distribution_equivalent_income, 2)
         tpa = round(taxes_paid_abroad, 2)
-        
+
         print(f"{'Distribution equivalent income (936/937):':<50} {dei:>10.2f} EUR")
         print(f"{'Taxes paid abroad (984/998):':<50} {tpa:>10.2f} EUR")
 
@@ -272,7 +270,8 @@ class TaxCalculator:
         print(f"\n{'Projected taxes to pay:':<50} {projected:>10.2f} EUR")
         print("\nNote: All amounts are rounded to 2 decimal places as required by Finanzonline.")
 
-    def _prepare_transactions(self, isin_transactions: List[Transaction], config: Config) -> List[Union[ComputedTransaction, float]]:
+    def _prepare_transactions(self, isin_transactions: List[Transaction], config: Config) -> List[
+        Union[ComputedTransaction, float]]:
         """Prepare and validate transactions for processing."""
         computed_transactions = []
         for transaction in isin_transactions:
@@ -286,7 +285,8 @@ class TaxCalculator:
 
         return sorted(computed_transactions, key=lambda t: t.date)
 
-    def _insert_adjustment_factor(self, computed_transactions: List[Union[ComputedTransaction, float]], config: Config, ecb_exchange_rate: float) -> List[Union[ComputedTransaction, float]]:
+    def _insert_adjustment_factor(self, computed_transactions: List[Union[ComputedTransaction, float]], config: Config,
+                                  ecb_exchange_rate: float) -> List[Union[ComputedTransaction, float]]:
         """Insert the adjustment factor at the appropriate position in the transaction list."""
         insertion_index = 0
         for index, value in enumerate(computed_transactions):
@@ -299,12 +299,13 @@ class TaxCalculator:
         )
         return computed_transactions
 
-    def _calculate_transaction_totals(self, computed_transactions: List[Union[ComputedTransaction, float]], config: Config,
-                             total_quantity: float, total_quantity_before_report: float,
-                             starting_moving_avg_price: float) -> Tuple[float, float, float]:
+    def _calculate_transaction_totals(self, computed_transactions: List[Union[ComputedTransaction, float]],
+                                      config: Config,
+                                      total_quantity: float, total_quantity_before_report: float,
+                                      starting_moving_avg_price: float) -> Tuple[float, float, float]:
         """Calculate transaction totals and moving average price."""
         moving_avg_price = starting_moving_avg_price
-        
+
         for value in computed_transactions:
             # Adjustment factor
             if isinstance(value, float) and total_quantity != 0.0:
@@ -312,7 +313,7 @@ class TaxCalculator:
             # Normal transaction
             elif isinstance(value, ComputedTransaction):
                 moving_avg_price = round(
-                    ((total_quantity * moving_avg_price) + (value.quantity * value.share_price)) / 
+                    ((total_quantity * moving_avg_price) + (value.quantity * value.share_price)) /
                     (total_quantity + value.quantity),
                     4)
                 value.moving_avg_price = moving_avg_price

@@ -7,9 +7,9 @@ import os
 import sys
 from typing import List
 
+from scalable_capital.excel_report import generate_excel_report
 from scalable_capital.models import Config
 from scalable_capital.tax_calculator import TaxCalculator
-from scalable_capital.excel_report import generate_excel_report
 
 
 def load_configs(config_path: str) -> List[Config]:
