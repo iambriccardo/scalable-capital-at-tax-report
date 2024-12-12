@@ -128,14 +128,17 @@ class Config:
 
 @dataclass
 class ComputedTransaction:
-    """Represents a processed transaction with computed values."""
-    date: datetime
-    quantity: float
-    share_price: float
-    total_price: float
-
+    """Represents a computed transaction with additional calculated fields."""
+    
+    def __init__(self, date: datetime, quantity: float, share_price: float, total_price: float):
+        self.date = date
+        self.quantity = quantity
+        self.share_price = share_price
+        self.total_price = total_price
+        self.moving_average_price: float = 0.0
+    
     @classmethod
-    def from_transaction(cls, transaction: 'Transaction') -> 'ComputedTransaction':
+    def from_transaction(cls, transaction: Transaction) -> 'ComputedTransaction':
         """Create a ComputedTransaction from a Transaction."""
         quantity = float(transaction.shares)
         total_price = abs(float(transaction.amount))
