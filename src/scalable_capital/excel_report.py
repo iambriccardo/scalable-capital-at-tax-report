@@ -40,44 +40,80 @@ class ExcelReportGenerator:
         df = pd.DataFrame(data)
         return df.sort_values('Date')
 
-    def _create_tax_summary_df(self, result: TaxCalculationResult) -> pd.DataFrame:
-        """Create a DataFrame with tax calculation summary for a specific ISIN from a tax result."""
-        data = {
-            'Metric': [
-                'ISIN',
-                'Start Date',
-                'Report Date',
-                'Starting Quantity',
-                'Quantity at Report Date',
-                'Final Quantity',
-                'Starting Moving Avg Price',
-                'Final Moving Avg Price',
-                'ECB Exchange Rate',
-                'Distribution Equivalent Income Factor',
-                'Taxes Paid Abroad Factor',
-                'Adjustment Factor',
-                'Distribution Equivalent Income (EUR)',
-                'Taxes Paid Abroad (EUR)',
-            ],
+    def _create_tax_summary_df(self, result: TaxCalculationResult) -> List[pd.DataFrame]:
+        """Create DataFrames with tax calculation summary sections for a specific ISIN."""
+        # Basic Information
+        basic_info = {
+            'Metric': ['ISIN', 'Start Date', 'End Date', 'Report Date'],
             'Value': [
                 result.isin,
                 pd.to_datetime(result.start_date),
+                pd.to_datetime(result.end_date),
                 pd.to_datetime(result.report_date),
+            ]
+        }
+
+        # Quantity Information
+        quantity_info = {
+            'Metric': [
+                'Starting Quantity',
+                'Quantity at Report Date',
+                'Final Quantity'
+            ],
+            'Value': [
                 round(result.starting_quantity, 3),
                 round(result.quantity_at_report, 3),
                 round(result.final_quantity, 3),
+            ]
+        }
+
+        # Price Information
+        price_info = {
+            'Metric': [
+                'Starting Moving Avg Price',
+                'Final Moving Avg Price',
+                'ECB Exchange Rate'
+            ],
+            'Value': [
                 round(result.starting_moving_avg_price, 4),
                 round(result.final_moving_avg_price, 4),
                 round(result.ecb_exchange_rate, 4),
+            ]
+        }
+
+        # OeKB Factors
+        oekb_factors = {
+            'Metric': [
+                'Distribution Equivalent Income Factor',
+                'Taxes Paid Abroad Factor',
+                'Adjustment Factor'
+            ],
+            'Value': [
                 round(result.distribution_equivalent_income_factor, 4),
                 round(result.taxes_paid_abroad_factor, 4),
                 round(result.adjustment_factor, 4),
+            ]
+        }
+
+        # Tax Results
+        tax_results = {
+            'Metric': [
+                'Distribution Equivalent Income (EUR)',
+                'Taxes Paid Abroad (EUR)'
+            ],
+            'Value': [
                 round(result.distribution_equivalent_income, 2),
                 round(result.taxes_paid_abroad, 2),
             ]
         }
 
-        return pd.DataFrame(data)
+        return [
+            ('Basic Information', pd.DataFrame(basic_info)),
+            ('Quantity Information', pd.DataFrame(quantity_info)),
+            ('Price Information', pd.DataFrame(price_info)),
+            ('OeKB Factors', pd.DataFrame(oekb_factors)),
+            ('Tax Results', pd.DataFrame(tax_results))
+        ]
 
     def generate_report(self, output_path: str):
         """Generate an Excel report with transactions and tax calculations per ISIN."""
@@ -116,6 +152,16 @@ class ExcelReportGenerator:
                 'align': 'center'
             })
 
+            # Add a title format
+            title_format = workbook.add_format({
+                'bold': True,
+                'font_size': 12,
+                'bg_color': '#4F81BD',
+                'font_color': 'white',
+                'align': 'center',
+                'border': 1
+            })
+
             # Generate sheets for each tax result
             for result in self.tax_results:
                 year_suffix = f"_{pd.to_datetime(result.report_date).strftime('%Y')}"
@@ -150,40 +196,50 @@ class ExcelReportGenerator:
                     for col_num, value in enumerate(trans_df.columns.values):
                         worksheet.write(0, col_num, value, header_format)
 
-                # Create tax summary sheet
-                tax_df = self._create_tax_summary_df(result)
-                if not tax_df.empty:
+                # Create tax summary sheet with sections
+                summary_sections = self._create_tax_summary_df(result)
+                if summary_sections:
                     sheet_name = f'{isin}_summary{year_suffix}'
-                    tax_df.to_excel(writer, sheet_name=sheet_name, index=False)
-
-                    # Format the summary sheet
-                    worksheet = writer.sheets[sheet_name]
+                    worksheet = workbook.add_worksheet(sheet_name)
+                    
+                    current_row = 0
+                    
+                    for section_title, df in summary_sections:
+                        # Write section title
+                        worksheet.merge_range(current_row, 0, current_row, 1, section_title, title_format)
+                        current_row += 1
+                        
+                        # Write headers
+                        for col_num, value in enumerate(df.columns.values):
+                            worksheet.write(current_row, col_num, value, header_format)
+                        current_row += 1
+                        
+                        # Write data
+                        for row_num, (_, row) in enumerate(df.iterrows(), start=current_row):
+                            worksheet.write(row_num, 0, row['Metric'], cell_format)
+                            value = row['Value']
+                            
+                            # Apply appropriate format based on the metric type
+                            metric = row['Metric']
+                            if metric in ['Start Date', 'End Date', 'Report Date']:
+                                excel_date = pd.to_datetime(value).timestamp() / 86400 + 25569
+                                worksheet.write(row_num, 1, excel_date, date_format)
+                            elif metric in ['Starting Quantity', 'Quantity at Report Date',
+                                        'Final Quantity']:
+                                worksheet.write(row_num, 1, value, number_format_3d)
+                            elif metric in ['Distribution Equivalent Income (EUR)',
+                                        'Taxes Paid Abroad (EUR)']:
+                                worksheet.write(row_num, 1, value, number_format_2d)
+                            elif metric == 'ISIN':
+                                worksheet.write(row_num, 1, value, cell_format)
+                            else:
+                                worksheet.write(row_num, 1, value, number_format_4d)
+                        
+                        current_row += len(df) + 1  # Add extra row for spacing between sections
+                    
+                    # Set column widths
                     worksheet.set_column('A:A', 35)
                     worksheet.set_column('B:B', 20)
-
-                    # Apply formats to all rows
-                    for row in range(1, len(tax_df) + 1):
-                        worksheet.write(row, 0, tax_df.iloc[row - 1]['Metric'], cell_format)
-                        value = tax_df.iloc[row - 1]['Value']
-
-                        # Apply appropriate format based on the metric type
-                        metric = tax_df.iloc[row - 1]['Metric']
-                        if metric in ['Start Date', 'Report Date']:  # Date fields
-                            worksheet.write(row, 1, value, date_format)
-                        elif metric in ['Starting Quantity', 'Quantity at Report Date',
-                                        'Final Quantity']:  # 3 decimal places
-                            worksheet.write(row, 1, value, number_format_3d)
-                        elif metric in ['Distribution Equivalent Income (EUR)',
-                                        'Taxes Paid Abroad (EUR)']:  # 2 decimal places
-                            worksheet.write(row, 1, value, number_format_2d)
-                        elif metric == 'ISIN':  # Plain text
-                            worksheet.write(row, 1, value, cell_format)
-                        else:  # Other numeric values with 4 decimal places
-                            worksheet.write(row, 1, value, number_format_4d)
-
-                    # Apply header format
-                    for col_num, value in enumerate(tax_df.columns.values):
-                        worksheet.write(0, col_num, value, header_format)
 
 
 def generate_excel_report(tax_results: List[TaxCalculationResult], output_path: str):
