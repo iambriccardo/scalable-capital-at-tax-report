@@ -201,42 +201,42 @@ class ExcelReportGenerator:
                 if summary_sections:
                     sheet_name = f'{isin}_summary{year_suffix}'
                     worksheet = workbook.add_worksheet(sheet_name)
-                    
+
                     current_row = 0
-                    
+
                     for section_title, df in summary_sections:
                         # Write section title
                         worksheet.merge_range(current_row, 0, current_row, 1, section_title, title_format)
                         current_row += 1
-                        
+
                         # Write headers
                         for col_num, value in enumerate(df.columns.values):
                             worksheet.write(current_row, col_num, value, header_format)
                         current_row += 1
-                        
+
                         # Write data
                         for row_num, (_, row) in enumerate(df.iterrows(), start=current_row):
                             worksheet.write(row_num, 0, row['Metric'], cell_format)
                             value = row['Value']
-                            
+
                             # Apply appropriate format based on the metric type
                             metric = row['Metric']
                             if metric in ['Start Date', 'End Date', 'Report Date']:
                                 excel_date = pd.to_datetime(value).timestamp() / 86400 + 25569
                                 worksheet.write(row_num, 1, excel_date, date_format)
                             elif metric in ['Starting Quantity', 'Quantity at Report Date',
-                                        'Final Quantity']:
+                                            'Final Quantity']:
                                 worksheet.write(row_num, 1, value, number_format_3d)
                             elif metric in ['Distribution Equivalent Income (EUR)',
-                                        'Taxes Paid Abroad (EUR)']:
+                                            'Taxes Paid Abroad (EUR)']:
                                 worksheet.write(row_num, 1, value, number_format_2d)
                             elif metric == 'ISIN':
                                 worksheet.write(row_num, 1, value, cell_format)
                             else:
                                 worksheet.write(row_num, 1, value, number_format_4d)
-                        
+
                         current_row += len(df) + 1  # Add extra row for spacing between sections
-                    
+
                     # Set column widths
                     worksheet.set_column('A:A', 35)
                     worksheet.set_column('B:B', 20)
