@@ -1,12 +1,15 @@
 [project]
 name = "scalable-capital"
 version = "0.1.0"
-description = "Add your description here"
+description = "Scalable Capital tax calculator"
 authors = [
-    { name = "Riccardo Busetti", email = "riccardo.busetti@sentry.io" }
+    { name = "Riccardo Busetti", email = "riccardob36@gmail.com" }
 ]
 dependencies = [
     "currencyconverter>=0.17.17",
+    "pandas>=2.2.3",
+    "numpy>=2.2.0",
+    "xlsxwriter>=3.2.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
