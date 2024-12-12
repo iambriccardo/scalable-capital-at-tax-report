@@ -152,6 +152,8 @@ class TaxCalculator:
         return TaxCalculationResult(
             isin=config.isin,
             report_date=config.oekb_report_date,
+            start_date=config.start_date,
+            end_date=config.end_date,
             distribution_equivalent_income_factor=config.oekb_distribution_equivalent_income_factor,
             taxes_paid_abroad_factor=config.oekb_taxes_paid_abroad_factor,
             adjustment_factor=config.oekb_adjustment_factor,

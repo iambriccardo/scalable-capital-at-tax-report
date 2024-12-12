@@ -156,6 +156,8 @@ class ComputedTransaction:
 class TaxCalculationResult:
     """Represents the complete tax calculation result for a single fund."""
     isin: str
+    start_date: datetime
+    end_date: datetime
     report_date: datetime
     distribution_equivalent_income_factor: float
     taxes_paid_abroad_factor: float

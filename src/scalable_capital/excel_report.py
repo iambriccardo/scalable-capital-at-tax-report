@@ -18,14 +18,24 @@ class ExcelReportGenerator:
     def _create_transaction_df(self, result: TaxCalculationResult) -> pd.DataFrame:
         """Create a DataFrame with transactions for a specific ISIN from a tax result."""
         data = []
+        
+        # Add initial position with starting date, quantity, and moving avg price
+        data.append({
+            'Date': result.start_date,
+            'Quantity': round(result.starting_quantity, 3),
+            'Share Price': None,
+            'Total Price': None,
+            'Moving Avg Price': round(result.starting_moving_avg_price, 4)
+        })
+        
         for t in result.computed_transactions:
-            if isinstance(t, ComputedTransaction):  # Skip float values in the list
+            if isinstance(t, ComputedTransaction):
                 data.append({
                     'Date': t.date,
-                    'Quantity': t.quantity,
-                    'Share Price': t.share_price,
-                    'Total Price': t.total_price,
-                    'Moving Avg Price': t.moving_avg_price
+                    'Quantity': round(t.quantity, 3),
+                    'Share Price': round(t.share_price, 3),
+                    'Total Price': round(t.total_price, 4),
+                    'Moving Avg Price': round(t.moving_avg_price, 4)
                 })
         
         df = pd.DataFrame(data)
@@ -50,17 +60,17 @@ class ExcelReportGenerator:
             ],
             'Value': [
                 result.report_date.strftime('%Y-%m-%d'),
-                result.starting_quantity,
-                result.quantity_at_report,
-                result.final_quantity,
-                result.starting_moving_avg_price,
-                result.final_moving_avg_price,
-                result.ecb_exchange_rate,
-                result.distribution_equivalent_income_factor,
-                result.taxes_paid_abroad_factor,
-                result.adjustment_factor,
-                result.distribution_equivalent_income,
-                result.taxes_paid_abroad,
+                round(result.starting_quantity, 3),
+                round(result.quantity_at_report, 3),
+                round(result.final_quantity, 3),
+                round(result.starting_moving_avg_price, 4),
+                round(result.final_moving_avg_price, 4),
+                round(result.ecb_exchange_rate, 4),
+                round(result.distribution_equivalent_income_factor, 4),
+                round(result.taxes_paid_abroad_factor, 4),
+                round(result.adjustment_factor, 4),
+                round(result.distribution_equivalent_income, 2),  # Finanzonline requires 2 decimals
+                round(result.taxes_paid_abroad, 2),  # Finanzonline requires 2 decimals
             ]
         }
         
@@ -78,13 +88,24 @@ class ExcelReportGenerator:
                 'border': 1
             })
             
-            number_format = workbook.add_format({
-                'num_format': '#,##0.00',
+            # Different number formats for different precisions
+            number_format_3d = workbook.add_format({
+                'num_format': '#,##0.000',  # 3 decimal places for quantities
+                'border': 1
+            })
+            
+            number_format_4d = workbook.add_format({
+                'num_format': '#,##0.0000',  # 4 decimal places for prices
+                'border': 1
+            })
+            
+            number_format_2d = workbook.add_format({
+                'num_format': '#,##0.00',  # 2 decimal places for EUR amounts
                 'border': 1
             })
             
             date_format = workbook.add_format({
-                'num_format': 'yyyy-mm-dd',
+                'num_format': 'dd/mm/yyyy',  # Match the date format from tax calculator
                 'border': 1
             })
             
@@ -102,7 +123,9 @@ class ExcelReportGenerator:
                     # Format the sheet
                     worksheet = writer.sheets[sheet_name]
                     worksheet.set_column('A:A', 12, date_format)  # Date
-                    worksheet.set_column('B:E', 15, number_format)  # Numeric columns
+                    worksheet.set_column('B:B', 12, number_format_3d)  # Quantity
+                    worksheet.set_column('C:C', 12, number_format_3d)  # Share Price
+                    worksheet.set_column('D:E', 12, number_format_4d)  # Total Price and Moving Avg
                     
                     # Apply header format
                     for col_num, value in enumerate(trans_df.columns.values):
