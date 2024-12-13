@@ -62,8 +62,8 @@ class TaxCalculator:
 
     @staticmethod
     def _to_ecb_rate(ecb_exchange_rate: float, value: float) -> float:
-        """Convert a value using ECB exchange rate, rounded to 4 decimal places."""
-        return round(ecb_exchange_rate * value, 4)
+        """Convert a value using ECB exchange rate."""
+        return ecb_exchange_rate * value
 
     def _compute_distribution_equivalent_income(
             self, config: Config, ecb_exchange_rate: float, quantity_at_report: float
@@ -75,10 +75,9 @@ class TaxCalculator:
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return 0.0
 
-        return round(
+        return (
             self._to_ecb_rate(ecb_exchange_rate, config.oekb_distribution_equivalent_income_factor)
-            * quantity_at_report,
-            4
+            * quantity_at_report
         )
 
     def _compute_taxes_paid_abroad(
@@ -91,10 +90,9 @@ class TaxCalculator:
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return 0.0
 
-        return round(
+        return (
             self._to_ecb_rate(ecb_exchange_rate, config.oekb_taxes_paid_abroad_factor)
-            * quantity_at_report,
-            4
+            * quantity_at_report
         )
 
     def _compute_adjustment_factor(self, config: Config, ecb_exchange_rate: float) -> float:
@@ -105,31 +103,27 @@ class TaxCalculator:
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return 0.0
 
-        return round(self._to_ecb_rate(ecb_exchange_rate, config.oekb_adjustment_factor), 4)
+        return self._to_ecb_rate(ecb_exchange_rate, config.oekb_adjustment_factor)
 
     def _process_single_security(self, config: Config) -> TaxCalculationResult:
         """Process tax calculations for a single fund."""
         # Filter transactions for this specific ISIN
         isin_transactions = [t for t in self.transactions if t.isin == config.isin]
 
-        starting_total_quantity = round(config.starting_quantity, 3)
+        starting_total_quantity = config.starting_quantity
         starting_total_quantity_before_report = starting_total_quantity
-        starting_moving_avg_price = round(config.starting_moving_avg_price, 4)
+        starting_moving_avg_price = config.starting_moving_avg_price
 
         # Get ECB exchange rate
         if config.security_type == SecurityType.ACCUMULATING_ETF:
-            ecb_exchange_rate = round(
-                CurrencyConverter().convert(1, config.oekb_report_currency, date=config.oekb_report_date),
-                4
+            ecb_exchange_rate = CurrencyConverter().convert(
+                1, config.oekb_report_currency, date=config.oekb_report_date
             )
         else:
             ecb_exchange_rate = 1.0
 
         # Process transactions
         computed_transactions = self._prepare_transactions(isin_transactions, config, ecb_exchange_rate)
-        
-        for transaction in computed_transactions:
-            print(transaction)
 
         # Calculate moving average price
         total_quantity, total_quantity_before_report, total_capital_gains, final_moving_avg_price = self._calculate_rolling_totals(
@@ -239,32 +233,19 @@ class TaxCalculator:
             moving_avg_price: float,
             report_date: str | None
     ) -> Tuple[float, float, float]:
-        """
-        Process a buy transaction and update quantities and moving average price.
-
-        Args:
-            transaction: The buy transaction to process
-            total_quantity: Current total quantity
-            total_quantity_before_report: Quantity before report date
-            moving_avg_price: Current moving average price
-            report_date: The OeKB report date
-
-        Returns:
-            Tuple of (new_total_quantity, new_total_quantity_before_report, new_moving_avg_price)
-        """
-        new_moving_avg_price = round(
-            ((total_quantity * moving_avg_price) + (transaction.quantity * transaction.share_price)) /
-            (total_quantity + transaction.quantity),
-            4
-        )
+        """Process a buy transaction and update quantities and moving average price."""
+        new_moving_avg_price = (
+            (total_quantity * moving_avg_price) + (transaction.quantity * transaction.share_price)
+        ) / (total_quantity + transaction.quantity)
+        
         transaction.moving_avg_price = new_moving_avg_price
 
-        new_total_quantity = round(total_quantity + transaction.quantity, 3)
+        new_total_quantity = total_quantity + transaction.quantity
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
 
         if report_date is not None and transaction.date <= report_date:
-            new_total_quantity_before_report = round(total_quantity_before_report + transaction.quantity, 3)
+            new_total_quantity_before_report = total_quantity_before_report + transaction.quantity
 
         return new_total_quantity, new_total_quantity_before_report, new_moving_avg_price
 
@@ -277,32 +258,18 @@ class TaxCalculator:
             moving_avg_price: float,
             report_date: str | None
     ) -> Tuple[float, float, float]:
-        """
-        Process a sell transaction and update quantities.
-
-        Args:
-            transaction: The sell transaction to process
-            total_quantity: Current total quantity
-            total_quantity_before_report: Quantity before report date
-            total_capital_gains: Current total capital gains
-            moving_avg_price: Current moving average price
-            report_date: The OeKB report date
-
-        Returns:
-            Tuple of (new_total_quantity, new_total_quantity_before_report, new_total_capital_gains)
-        """
+        """Process a sell transaction and update quantities."""
         transaction.moving_avg_price = moving_avg_price
                 
-        new_total_quantity = round(total_quantity - transaction.quantity, 3)
+        new_total_quantity = total_quantity - transaction.quantity
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
 
         if report_date is not None and transaction.date <= report_date:
-            new_total_quantity_before_report = round(total_quantity_before_report - transaction.quantity, 3)
+            new_total_quantity_before_report = total_quantity_before_report - transaction.quantity
 
-        new_total_capital_gains = round(
-            (transaction.quantity * (transaction.share_price - moving_avg_price)) + total_capital_gains,
-            4
+        new_total_capital_gains = (
+            (transaction.quantity * (transaction.share_price - moving_avg_price)) + total_capital_gains
         )
 
         return new_total_quantity, new_total_quantity_before_report, new_total_capital_gains
