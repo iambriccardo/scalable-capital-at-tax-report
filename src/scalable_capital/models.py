@@ -7,7 +7,7 @@ from typing import List, Union
 
 class TransactionType(str, Enum):
     WITHDRAWAL = "Withdrawal"
-    SAVINGS_PLAN = "Savings plan"
+    SAVINGS_PLAN = "Savings Plan"
     DEPOSIT = "Deposit"
     FEE = "Fee"
     SELL = "Sell"
@@ -26,6 +26,9 @@ class TransactionType(str, Enum):
 
     def is_buy(self) -> bool:
         return self in [TransactionType.BUY, TransactionType.SAVINGS_PLAN]
+    
+    def is_sell(self) -> bool:
+        return self == TransactionType.SELL
 
     def excluded(self) -> bool:
         return self in [
@@ -33,20 +36,18 @@ class TransactionType(str, Enum):
             TransactionType.FEE,
             TransactionType.DEPOSIT,
             TransactionType.INTEREST,
-            # TODO: add support for SELL later.
-            TransactionType.SELL
         ]
 
 
 @dataclass
 class Transaction:
+    type: TransactionType
     date: datetime
     time: str
     status: str
     reference: str
     description: str
     asset_type: str
-    type: TransactionType
     isin: str | None
     shares: Decimal
     price: Decimal
@@ -125,58 +126,105 @@ class Config:
             isin=data['isin']
         )
 
-
 @dataclass
-class ComputedTransaction:
-    """Represents a computed transaction with additional calculated fields."""
+class BuyTransaction:
+    """Represents a buy transaction."""
 
-    def __init__(self, date: datetime, quantity: float, share_price: float, total_price: float):
+    def __init__(self, date: datetime, quantity: float, share_price: float):
         self.date = date
         self.quantity = quantity
         self.share_price = share_price
-        self.total_price = total_price
         self.moving_avg_price: float = 0.0
 
     @classmethod
-    def from_transaction(cls, transaction: Transaction) -> 'ComputedTransaction':
-        """Create a ComputedTransaction from a Transaction."""
-        quantity = float(transaction.shares)
-        total_price = abs(float(transaction.amount))
-        share_price = round(total_price / quantity, 4)
-
+    def from_transaction(cls, transaction: Transaction) -> 'BuyTransaction':
+        """Create a BuyTransaction from a Transaction."""
         return cls(
             date=transaction.date,
-            quantity=quantity,
-            share_price=share_price,
-            total_price=total_price
+            quantity=float(transaction.shares),
+            share_price=float(transaction.price)
         )
+        
+    def total_price(self) -> float:
+        return round(self.quantity * self.share_price, 4)
+    
+    def type_name(self) -> str:
+        return "BUY"
 
+@dataclass
+class SellTransaction:
+    """Represents a sell transaction."""
+    
+    def __init__(self, date: datetime, quantity: float, share_price: float):
+        self.date = date
+        self.quantity = quantity
+        self.share_price = share_price
+        self.moving_avg_price: float = 0.0
+
+    @classmethod
+    def from_transaction(cls, transaction: Transaction) -> 'SellTransaction':
+        """Create a SellTransaction from a Transaction."""
+        return cls(
+            date=transaction.date,
+            quantity=float(transaction.shares),
+            share_price=float(transaction.price)
+        )
+    
+    def total_price(self) -> float:
+        return round(self.quantity * self.share_price, 4)
+    
+    def type_name(self) -> str:
+        return "SELL"
+
+@dataclass
+class AdjustmentTransaction:
+    """Represents an adjustment transaction."""
+    
+    def __init__(self, date: datetime, adjustment_factor: float):
+        self.date = date
+        self.adjustment_factor = adjustment_factor
+        self.moving_avg_price = 0.0
+    
+    def type_name(self) -> str:
+        return "ADJ"
+
+ComputedTransaction = Union[BuyTransaction, SellTransaction, AdjustmentTransaction]
 
 @dataclass
 class TaxCalculationResult:
     """Represents the complete tax calculation result for a single fund."""
+    # Fund identification
     isin: str
+    report_currency: str
+    
+    # Report dates
     start_date: datetime
-    end_date: datetime
+    end_date: datetime 
     report_date: datetime
+    
+    # OeKB factors
     distribution_equivalent_income_factor: float
     taxes_paid_abroad_factor: float
     adjustment_factor: float
-    report_currency: str
+    
+    # ECB exchange rate
     ecb_exchange_rate: float
 
-    # Computed values
+    # Computed values from OeKB factors
     distribution_equivalent_income: float
     taxes_paid_abroad: float
+    
+    # Total capital gains
+    total_capital_gains: float
 
-    # Quantities
+    # Quantity tracking
     starting_quantity: float
-    quantity_at_report: float
-    final_quantity: float
+    total_quantity_before_report: float
+    total_quantity: float
 
-    # Moving average prices
+    # Price tracking 
     starting_moving_avg_price: float
     final_moving_avg_price: float
 
-    # All transactions including adjustment factor
-    computed_transactions: List[Union[ComputedTransaction, float]]
+    # Transaction history
+    computed_transactions: List[ComputedTransaction]
