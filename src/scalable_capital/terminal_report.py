@@ -4,7 +4,7 @@ Creates detailed console output with transaction data and tax calculations.
 """
 from typing import List
 
-from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, BuyTransaction, SellTransaction
+from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, BuyTransaction, SellTransaction, SecurityType
 
 
 class TerminalReportGenerator:
@@ -18,15 +18,18 @@ class TerminalReportGenerator:
         print("=" * 80 + "\n")
 
         print(f"Config ISIN: {config.isin}")
+        print(f"Security Type: {config.security_type.value}")
         print(f"Data file: {csv_file_path}\n")
 
-        print("OeKB Factors:")
-        print(f"  • Distribution equivalent income: {config.oekb_distribution_equivalent_income_factor:.4f}")
-        print(f"  • Taxes paid abroad: {config.oekb_taxes_paid_abroad_factor:.4f}")
-        print(f"  • Adjustment: {config.oekb_adjustment_factor:.4f}\n")
+        # Only show OEKB factors for accumulating ETFs
+        if config.security_type == SecurityType.ACCUMULATING_ETF:
+            print("OeKB Factors:")
+            print(f"  • Distribution equivalent income: {config.oekb_distribution_equivalent_income_factor:.4f}")
+            print(f"  • Taxes paid abroad: {config.oekb_taxes_paid_abroad_factor:.4f}")
+            print(f"  • Adjustment: {config.oekb_adjustment_factor:.4f}\n")
 
-        print(
-            f"ECB Exchange rate ({config.oekb_report_currency} → EUR) at {config.oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate:.4f}")
+            print(
+                f"ECB Exchange rate ({config.oekb_report_currency} → EUR) at {config.oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate:.4f}")
 
     @staticmethod
     def print_transactions(config: Config, computed_transactions: List[ComputedTransaction]) -> None:
@@ -81,7 +84,8 @@ class TerminalReportGenerator:
         print("=" * 80 + "\n")
 
         print(f"Starting shares:                              {config.starting_quantity:,.3f}")
-        print(f"Total shares before OeKB report ({config.oekb_report_date.strftime('%d/%m/%Y')}): {total_quantity_before_report:,.3f}")
+        if config.security_type == SecurityType.ACCUMULATING_ETF:
+            print(f"Total shares before OeKB report ({config.oekb_report_date.strftime('%d/%m/%Y')}): {total_quantity_before_report:,.3f}")
         print(f"Current total shares:                         {total_quantity:,.3f}")
 
     @staticmethod
@@ -121,7 +125,8 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
                 oekb_report_currency=result.report_currency,
                 starting_quantity=result.starting_quantity,
                 starting_moving_avg_price=result.starting_moving_avg_price,
-                isin=result.isin
+                isin=result.isin,
+                security_type=result.security_type
             ),
             result.ecb_exchange_rate,
             csv_file_path
@@ -139,7 +144,8 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
                 oekb_report_currency=result.report_currency,
                 starting_quantity=result.starting_quantity,
                 starting_moving_avg_price=result.starting_moving_avg_price,
-                isin=result.isin
+                isin=result.isin,
+                security_type=result.security_type
             ),
             result.computed_transactions
         )
@@ -163,7 +169,8 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
                 oekb_report_currency=result.report_currency,
                 starting_quantity=result.starting_quantity,
                 starting_moving_avg_price=result.starting_moving_avg_price,
-                isin=result.isin
+                isin=result.isin,
+                security_type=result.security_type
             ),
             result.total_quantity_before_report,
             result.total_quantity

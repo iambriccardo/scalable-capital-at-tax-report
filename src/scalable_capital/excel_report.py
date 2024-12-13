@@ -6,7 +6,7 @@ from typing import List
 
 import pandas as pd
 
-from scalable_capital.models import TaxCalculationResult, BuyTransaction
+from scalable_capital.models import TaxCalculationResult, BuyTransaction, SecurityType
 
 
 class ExcelReportGenerator:
@@ -46,80 +46,106 @@ class ExcelReportGenerator:
 
     def _create_tax_summary_df(self, result: TaxCalculationResult) -> List[pd.DataFrame]:
         """Create DataFrames with tax calculation summary sections for a specific ISIN."""
-        # Basic Information
+        # Basic Information - Common for all security types
+        basic_info_metrics = ['ISIN', 'Security Type', 'Start Date', 'End Date']
+        basic_info_values = [
+            result.isin,
+            result.security_type.value,
+            pd.to_datetime(result.start_date),
+            pd.to_datetime(result.end_date),
+        ]
+
+        # Add report date only for accumulating ETFs
+        if result.security_type == SecurityType.ACCUMULATING_ETF:
+            basic_info_metrics.append('Report Date')
+            basic_info_values.append(pd.to_datetime(result.report_date))
+
         basic_info = {
-            'Metric': ['ISIN', 'Start Date', 'End Date', 'Report Date'],
-            'Value': [
-                result.isin,
-                pd.to_datetime(result.start_date),
-                pd.to_datetime(result.end_date),
-                pd.to_datetime(result.report_date),
-            ]
+            'Metric': basic_info_metrics,
+            'Value': basic_info_values
         }
 
-        # Quantity Information
+        # Quantity Information - Common for all security types
+        quantity_info_metrics = ['Starting Quantity', 'Total Quantity']
+        quantity_info_values = [
+            round(result.starting_quantity, 3),
+            round(result.total_quantity, 3)
+        ]
+
+        # Add quantity before report only for accumulating ETFs
+        if result.security_type == SecurityType.ACCUMULATING_ETF:
+            quantity_info_metrics.insert(1, 'Total Quantity Before Report')
+            quantity_info_values.insert(1, round(result.total_quantity_before_report, 3))
+
         quantity_info = {
-            'Metric': [
-                'Starting Quantity',
-                'Total Quantity Before Report',
-                'Total Quantity'
-            ],
-            'Value': [
-                round(result.starting_quantity, 3),
-                round(result.total_quantity_before_report, 3),
-                round(result.total_quantity, 3)
-            ]
+            'Metric': quantity_info_metrics,
+            'Value': quantity_info_values
         }
 
-        # Price Information
-        price_info = {
-            'Metric': [
-                'Starting Moving Avg Price',
-                'Final Moving Avg Price',
-                f'ECB Exchange Rate ({result.report_currency} → EUR)'
-            ],
-            'Value': [
-                round(result.starting_moving_avg_price, 4),
-                round(result.final_moving_avg_price, 4),
-                round(result.ecb_exchange_rate, 4),
-            ]
-        }
-
-        # OeKB Factors
-        oekb_factors = {
-            'Metric': [
-                'Distribution Equivalent Income Factor',
-                'Taxes Paid Abroad Factor',
-                'Adjustment Factor'
-            ],
-            'Value': [
-                round(result.distribution_equivalent_income_factor, 4),
-                round(result.taxes_paid_abroad_factor, 4),
-                round(result.adjustment_factor, 4),
-            ]
-        }
-
-        # Tax Results
-        tax_results = {
-            'Metric': [
-                'Distribution Equivalent Income (EUR)',
-                'Taxes Paid Abroad (EUR)',
-                'Total Capital Gains (EUR)'
-            ],
-            'Value': [
-                round(result.distribution_equivalent_income, 2),
-                round(result.taxes_paid_abroad, 2),
-                round(result.total_capital_gains, 2)
-            ]
-        }
-
-        return [
+        # Initialize sections list with common information
+        sections = [
             ('Basic Information', pd.DataFrame(basic_info)),
             ('Quantity Information', pd.DataFrame(quantity_info)),
-            ('Price Information', pd.DataFrame(price_info)),
-            ('OeKB Factors', pd.DataFrame(oekb_factors)),
-            ('Tax Results', pd.DataFrame(tax_results))
         ]
+
+        # Price Information - Different for each security type
+        price_info_metrics = ['Starting Moving Avg Price', 'Final Moving Avg Price']
+        price_info_values = [
+            round(result.starting_moving_avg_price, 4),
+            round(result.final_moving_avg_price, 4),
+        ]
+
+        if result.security_type == SecurityType.ACCUMULATING_ETF:
+            price_info_metrics.append(f'ECB Exchange Rate ({result.report_currency} → EUR)')
+            price_info_values.append(round(result.ecb_exchange_rate, 4))
+
+        price_info = {
+            'Metric': price_info_metrics,
+            'Value': price_info_values
+        }
+        sections.append(('Price Information', pd.DataFrame(price_info)))
+
+        # OeKB Factors - Only for accumulating ETFs
+        if result.security_type == SecurityType.ACCUMULATING_ETF:
+            oekb_factors = {
+                'Metric': [
+                    'Distribution Equivalent Income Factor',
+                    'Taxes Paid Abroad Factor',
+                    'Adjustment Factor'
+                ],
+                'Value': [
+                    round(result.distribution_equivalent_income_factor, 4),
+                    round(result.taxes_paid_abroad_factor, 4),
+                    round(result.adjustment_factor, 4),
+                ]
+            }
+            sections.append(('OeKB Factors', pd.DataFrame(oekb_factors)))
+
+        # Tax Results - Different for each security type
+        tax_results_metrics = []
+        tax_results_values = []
+
+        if result.security_type == SecurityType.ACCUMULATING_ETF:
+            tax_results_metrics.extend([
+                'Distribution Equivalent Income (EUR)',
+                'Taxes Paid Abroad (EUR)',
+            ])
+            tax_results_values.extend([
+                round(result.distribution_equivalent_income, 2),
+                round(result.taxes_paid_abroad, 2),
+            ])
+
+        # Total Capital Gains is common for all security types
+        tax_results_metrics.append('Total Capital Gains (EUR)')
+        tax_results_values.append(round(result.total_capital_gains, 2))
+
+        tax_results = {
+            'Metric': tax_results_metrics,
+            'Value': tax_results_values
+        }
+        sections.append(('Tax Results', pd.DataFrame(tax_results)))
+
+        return sections
 
     def generate_report(self, output_path: str):
         """Generate an Excel report with transactions and tax calculations per ISIN."""
@@ -170,7 +196,7 @@ class ExcelReportGenerator:
 
             # Generate sheets for each tax result
             for result in self.tax_results:
-                year_suffix = f"_{pd.to_datetime(result.report_date).strftime('%Y')}"
+                year_suffix = f"_{pd.to_datetime(result.start_date).strftime('%Y')}"
                 isin = result.isin
 
                 # Create transaction sheet

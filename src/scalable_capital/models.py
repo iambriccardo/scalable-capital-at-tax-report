@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum
+from enum import Enum, auto
 from typing import List
 
 
@@ -54,6 +54,21 @@ class TransactionType(str, Enum):
             TransactionType.DEPOSIT,
             TransactionType.INTEREST,
         ]
+
+
+class SecurityType(str, Enum):
+    """Type of security being processed."""
+    ACCUMULATING_ETF = "accumulating_etf"
+    STOCK = "stock"
+
+    @classmethod
+    def _missing_(cls, value: str) -> 'SecurityType':
+        """Handle case-insensitive lookup of enum values."""
+        for member in cls:
+            if member.value.lower() == value.lower():
+                return member
+        print(f"Unknown security type: {value}")
+        return None
 
 
 @dataclass
@@ -120,11 +135,13 @@ class Transaction:
 @dataclass
 class Config:
     """
-    Configuration for tax calculations of a specific fund.
+    Configuration for tax calculations of a specific security.
     
     Contains all necessary parameters for calculating taxes according to
     Austrian tax law and OeKB (Oesterreichische Kontrollbank) requirements.
     """
+    # Security type
+    security_type: SecurityType
     # Start date of the period under consideration
     start_date: datetime
     # End date of the period under consideration
@@ -150,7 +167,27 @@ class Config:
     @classmethod
     def from_dict(cls, data: dict) -> 'Config':
         """Create a Config instance from a dictionary."""
+        security_type = SecurityType(data['type'])
+        
+        # For stocks, OEKB fields are optional and default to None/0
+        if security_type == SecurityType.STOCK:
+            return cls(
+                security_type=security_type,
+                start_date=datetime.strptime(data['start_date'], '%d/%m/%Y'),
+                end_date=datetime.strptime(data['end_date'], '%d/%m/%Y'),
+                oekb_report_date=None,
+                oekb_distribution_equivalent_income_factor=0.0,
+                oekb_taxes_paid_abroad_factor=0.0,
+                oekb_adjustment_factor=0.0,
+                oekb_report_currency=None,
+                starting_quantity=float(data['starting_quantity']),
+                starting_moving_avg_price=float(data['starting_moving_avg_price']),
+                isin=data['isin']
+            )
+        
+        # For ETFs, all OEKB fields are required
         return cls(
+            security_type=security_type,
             start_date=datetime.strptime(data['start_date'], '%d/%m/%Y'),
             end_date=datetime.strptime(data['end_date'], '%d/%m/%Y'),
             oekb_report_date=datetime.strptime(data['oekb_report_date'], '%d/%m/%Y'),
@@ -271,6 +308,7 @@ class TaxCalculationResult:
     # Fund identification
     isin: str
     report_currency: str
+    security_type: SecurityType
     
     # Report dates
     start_date: datetime

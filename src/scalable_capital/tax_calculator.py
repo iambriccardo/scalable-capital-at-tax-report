@@ -15,7 +15,7 @@ from currency_converter import CurrencyConverter
 
 from scalable_capital.models import (
     Transaction, Config, BuyTransaction, AdjustmentTransaction, 
-    SellTransaction, ComputedTransaction, TaxCalculationResult
+    SellTransaction, ComputedTransaction, TaxCalculationResult, SecurityType
 )
 
 class TaxCalculator:
@@ -69,15 +69,11 @@ class TaxCalculator:
     ) -> float:
         """
         Calculate distribution equivalent income (Ausschüttungsgleiche Erträge 27,5%).
-        
-        Args:
-            config: Fund configuration
-            ecb_exchange_rate: Exchange rate from fund currency to EUR
-            quantity_at_report: Number of shares held at report date
-            
-        Returns:
-            Distribution equivalent income in EUR
+        Only applies to accumulating ETFs.
         """
+        if config.security_type != SecurityType.ACCUMULATING_ETF:
+            return 0.0
+        
         return round(
             self._to_ecb_rate(ecb_exchange_rate, config.oekb_distribution_equivalent_income_factor)
             * quantity_at_report,
@@ -89,15 +85,11 @@ class TaxCalculator:
     ) -> float:
         """
         Calculate foreign taxes paid (Anzurechnende ausländische Quellensteuer).
-        
-        Args:
-            config: Fund configuration
-            ecb_exchange_rate: Exchange rate from fund currency to EUR
-            quantity_at_report: Number of shares held at report date
-            
-        Returns:
-            Foreign taxes paid in EUR
+        Only applies to accumulating ETFs.
         """
+        if config.security_type != SecurityType.ACCUMULATING_ETF:
+            return 0.0
+        
         return round(
             self._to_ecb_rate(ecb_exchange_rate, config.oekb_taxes_paid_abroad_factor)
             * quantity_at_report,
@@ -105,10 +97,16 @@ class TaxCalculator:
         )
 
     def _compute_adjustment_factor(self, config: Config, ecb_exchange_rate: float) -> float:
-        """Calculate the adjustment factor for acquisition costs."""
+        """
+        Calculate the adjustment factor for acquisition costs.
+        Only applies to accumulating ETFs.
+        """
+        if config.security_type != SecurityType.ACCUMULATING_ETF:
+            return 0.0
+        
         return round(self._to_ecb_rate(ecb_exchange_rate, config.oekb_adjustment_factor), 4)
 
-    def _process_single_fund(self, config: Config) -> TaxCalculationResult:
+    def _process_single_security(self, config: Config) -> TaxCalculationResult:
         """Process tax calculations for a single fund."""
         # Filter transactions for this specific ISIN
         isin_transactions = [t for t in self.transactions if t.isin == config.isin]
@@ -118,10 +116,13 @@ class TaxCalculator:
         starting_moving_avg_price = round(config.starting_moving_avg_price, 4)
 
         # Get ECB exchange rate
-        ecb_exchange_rate = round(
-            CurrencyConverter().convert(1, config.oekb_report_currency, date=config.oekb_report_date),
-            4
-        )
+        if config.security_type == SecurityType.ACCUMULATING_ETF:
+            ecb_exchange_rate = round(
+                CurrencyConverter().convert(1, config.oekb_report_currency, date=config.oekb_report_date),
+                4
+            )
+        else:
+            ecb_exchange_rate = 1.0
 
         # Process transactions
         computed_transactions = self._prepare_transactions(isin_transactions, config)
@@ -132,7 +133,7 @@ class TaxCalculator:
         )
 
         # Calculate moving average price
-        total_quantity, total_quantity_before_report, total_capital_gains, final_moving_avg_price = self._calculate_transaction_totals(
+        total_quantity, total_quantity_before_report, total_capital_gains, final_moving_avg_price = self._calculate_rolling_totals(
             computed_transactions,
             config,
             starting_total_quantity,
@@ -150,6 +151,7 @@ class TaxCalculator:
         # Create result model
         return TaxCalculationResult(
             isin=config.isin,
+            security_type=config.security_type,
             report_currency=config.oekb_report_currency,
             start_date=config.start_date,
             end_date=config.end_date,
@@ -173,7 +175,7 @@ class TaxCalculator:
         """Calculate taxes for all configured funds."""
         results = []
         for config in self.configs:
-            result = self._process_single_fund(config)
+            result = self._process_single_security(config)
             results.append(result)
         return results
 
@@ -196,6 +198,9 @@ class TaxCalculator:
     def _insert_adjustment_factor(self, computed_transactions: List[ComputedTransaction], config: Config,
                                   ecb_exchange_rate: float) -> List[ComputedTransaction]:
         """Insert the adjustment factor at the appropriate position in the transaction list."""
+        if config.security_type != SecurityType.ACCUMULATING_ETF:
+            return computed_transactions
+        
         insertion_index = 0
         for index, value in enumerate(computed_transactions):
             if config.oekb_report_date >= value.date:
@@ -242,7 +247,7 @@ class TaxCalculator:
         total_quantity: float,
         total_quantity_before_report: float,
         moving_avg_price: float,
-        report_date: str
+        report_date: str | None
     ) -> Tuple[float, float, float]:
         """
         Process a buy transaction and update quantities and moving average price.
@@ -268,7 +273,7 @@ class TaxCalculator:
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
 
-        if transaction.date <= report_date:
+        if report_date is not None and transaction.date <= report_date:
             new_total_quantity_before_report = round(total_quantity_before_report + transaction.quantity, 3)
 
         return new_total_quantity, new_total_quantity_before_report, new_moving_avg_price
@@ -278,7 +283,7 @@ class TaxCalculator:
         transaction: SellTransaction,
         total_quantity: float,
         total_quantity_before_report: float,
-        report_date: str
+        report_date: str | None
     ) -> Tuple[float, float]:
         """
         Process a sell transaction and update quantities.
@@ -296,12 +301,12 @@ class TaxCalculator:
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
 
-        if transaction.date <= report_date:
+        if report_date is not None and transaction.date <= report_date:
             new_total_quantity_before_report = round(total_quantity_before_report - transaction.quantity, 3)
 
         return new_total_quantity, new_total_quantity_before_report
 
-    def _calculate_transaction_totals(
+    def _calculate_rolling_totals(
         self,
         computed_transactions: List[ComputedTransaction],
         config: Config,
@@ -310,11 +315,11 @@ class TaxCalculator:
         starting_moving_avg_price: float
     ) -> Tuple[float, float, float, float]:
         """
-        Calculate transaction totals and moving average price.
+        Calculate rolling totals and moving average price.
 
         Args:
             computed_transactions: List of transactions to process
-            config: Fund configuration
+            config: Security configuration
             starting_total_quantity: Initial total quantity
             starting_total_quantity_before_report: Initial quantity before report
             starting_moving_avg_price: Initial moving average price
