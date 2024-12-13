@@ -6,7 +6,7 @@ from typing import List
 
 import pandas as pd
 
-from scalable_capital.models import TaxCalculationResult, BuyTransaction, SecurityType
+from scalable_capital.models import TaxCalculationResult, SecurityType
 
 
 class ExcelReportGenerator:
@@ -221,7 +221,7 @@ class ExcelReportGenerator:
 
                     # Set column widths
                     worksheet.set_column('A:A', 12)  # Date
-                    worksheet.set_column('B:B', 8)   # Type
+                    worksheet.set_column('B:B', 8)  # Type
                     worksheet.set_column('C:C', 12)  # Quantity
                     worksheet.set_column('D:D', 12)  # Share Price
                     worksheet.set_column('E:F', 12)  # Total Price and Moving Avg Price

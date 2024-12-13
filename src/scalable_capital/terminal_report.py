@@ -4,7 +4,8 @@ Creates detailed console output with transaction data and tax calculations.
 """
 from typing import List
 
-from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, BuyTransaction, SellTransaction, SecurityType
+from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, \
+    BuyTransaction, SellTransaction, SecurityType
 
 
 class TerminalReportGenerator:
@@ -39,7 +40,8 @@ class TerminalReportGenerator:
         print("=" * 90 + "\n")
 
         # Print header with proper spacing
-        print(f"{'Date':12} {'Type':8} {'Quantity':>12} {'Share Price':>14} {'Total Price':>14} {'Moving Avg':>14} {'Total Qty':>12}")
+        print(
+            f"{'Date':12} {'Type':8} {'Quantity':>12} {'Share Price':>14} {'Total Price':>14} {'Moving Avg':>14} {'Total Qty':>12}")
         print("-" * 90)
 
         # Print starting quantity and starting moving average price
@@ -62,7 +64,7 @@ class TerminalReportGenerator:
 
     @staticmethod
     def print_capital_gains(distribution_equivalent_income: float, taxes_paid_abroad: float,
-                          total_capital_gains: float) -> None:
+                            total_capital_gains: float) -> None:
         """Print the capital gains information."""
         print("\n" + "=" * 80)
         print(f"{'CAPITAL GAINS':^80}")
@@ -85,7 +87,8 @@ class TerminalReportGenerator:
 
         print(f"Starting shares:                              {config.starting_quantity:,.3f}")
         if config.security_type == SecurityType.ACCUMULATING_ETF:
-            print(f"Total shares before OeKB report ({config.oekb_report_date.strftime('%d/%m/%Y')}): {total_quantity_before_report:,.3f}")
+            print(
+                f"Total shares before OeKB report ({config.oekb_report_date.strftime('%d/%m/%Y')}): {total_quantity_before_report:,.3f}")
         print(f"Current total shares:                         {total_quantity:,.3f}")
 
     @staticmethod
@@ -180,4 +183,4 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
         total_taxes_paid_abroad += result.taxes_paid_abroad
 
     # Print final summary
-    generator.print_final_summary(total_distribution_equivalent_income, total_taxes_paid_abroad) 
+    generator.print_final_summary(total_distribution_equivalent_income, total_taxes_paid_abroad)

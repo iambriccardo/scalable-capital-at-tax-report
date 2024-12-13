@@ -9,14 +9,15 @@ The calculator processes transactions for investment funds and calculates:
 - Capital gains
 """
 import csv
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 from currency_converter import CurrencyConverter
 
 from scalable_capital.models import (
-    Transaction, Config, BuyTransaction, AdjustmentTransaction, 
+    Transaction, Config, BuyTransaction, AdjustmentTransaction,
     SellTransaction, ComputedTransaction, TaxCalculationResult, SecurityType
 )
+
 
 class TaxCalculator:
     """
@@ -50,7 +51,7 @@ class TaxCalculator:
             List of Transaction objects
         """
         transactions = []
-        
+
         with open(self.csv_file_path, 'r') as file:
             reader = csv.DictReader(file, delimiter=';')
             for row in reader:
@@ -73,7 +74,7 @@ class TaxCalculator:
         """
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return 0.0
-        
+
         return round(
             self._to_ecb_rate(ecb_exchange_rate, config.oekb_distribution_equivalent_income_factor)
             * quantity_at_report,
@@ -89,7 +90,7 @@ class TaxCalculator:
         """
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return 0.0
-        
+
         return round(
             self._to_ecb_rate(ecb_exchange_rate, config.oekb_taxes_paid_abroad_factor)
             * quantity_at_report,
@@ -103,7 +104,7 @@ class TaxCalculator:
         """
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return 0.0
-        
+
         return round(self._to_ecb_rate(ecb_exchange_rate, config.oekb_adjustment_factor), 4)
 
     def _process_single_security(self, config: Config) -> TaxCalculationResult:
@@ -184,7 +185,8 @@ class TaxCalculator:
         computed_transactions = []
         for transaction in isin_transactions:
             if transaction.type.excluded():
-                print(f"\n[ERROR]: Skipping transaction with type = {transaction.type.value}, status={transaction.status}")
+                print(
+                    f"\n[ERROR]: Skipping transaction with type = {transaction.type.value}, status={transaction.status}")
                 continue
 
             if config.start_date <= transaction.date <= config.end_date:
@@ -200,7 +202,7 @@ class TaxCalculator:
         """Insert the adjustment factor at the appropriate position in the transaction list."""
         if config.security_type != SecurityType.ACCUMULATING_ETF:
             return computed_transactions
-        
+
         insertion_index = 0
         for index, value in enumerate(computed_transactions):
             if config.oekb_report_date >= value.date:
@@ -217,10 +219,10 @@ class TaxCalculator:
         return computed_transactions
 
     def _handle_adjustment_transaction(
-        self, 
-        transaction: AdjustmentTransaction, 
-        total_quantity: float,
-        moving_avg_price: float
+            self,
+            transaction: AdjustmentTransaction,
+            total_quantity: float,
+            moving_avg_price: float
     ) -> Tuple[float, float]:
         """
         Process an adjustment transaction and update the moving average price.
@@ -242,12 +244,12 @@ class TaxCalculator:
         return total_quantity, moving_avg_price
 
     def _handle_buy_transaction(
-        self,
-        transaction: BuyTransaction,
-        total_quantity: float,
-        total_quantity_before_report: float,
-        moving_avg_price: float,
-        report_date: str | None
+            self,
+            transaction: BuyTransaction,
+            total_quantity: float,
+            total_quantity_before_report: float,
+            moving_avg_price: float,
+            report_date: str | None
     ) -> Tuple[float, float, float]:
         """
         Process a buy transaction and update quantities and moving average price.
@@ -279,11 +281,11 @@ class TaxCalculator:
         return new_total_quantity, new_total_quantity_before_report, new_moving_avg_price
 
     def _handle_sell_transaction(
-        self,
-        transaction: SellTransaction,
-        total_quantity: float,
-        total_quantity_before_report: float,
-        report_date: str | None
+            self,
+            transaction: SellTransaction,
+            total_quantity: float,
+            total_quantity_before_report: float,
+            report_date: str | None
     ) -> Tuple[float, float]:
         """
         Process a sell transaction and update quantities.
@@ -307,12 +309,12 @@ class TaxCalculator:
         return new_total_quantity, new_total_quantity_before_report
 
     def _calculate_rolling_totals(
-        self,
-        computed_transactions: List[ComputedTransaction],
-        config: Config,
-        starting_total_quantity: float,
-        starting_total_quantity_before_report: float,
-        starting_moving_avg_price: float
+            self,
+            computed_transactions: List[ComputedTransaction],
+            config: Config,
+            starting_total_quantity: float,
+            starting_total_quantity_before_report: float,
+            starting_moving_avg_price: float
     ) -> Tuple[float, float, float, float]:
         """
         Calculate rolling totals and moving average price.

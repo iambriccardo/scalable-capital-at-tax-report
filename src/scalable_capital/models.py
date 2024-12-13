@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
-from enum import Enum, auto
+from enum import Enum
 from typing import List
 
 
@@ -41,7 +41,7 @@ class TransactionType(str, Enum):
     def is_buy(self) -> bool:
         """Check if transaction type represents a buy operation (including savings plans)."""
         return self in [TransactionType.BUY, TransactionType.SAVINGS_PLAN]
-    
+
     def is_sell(self) -> bool:
         """Check if transaction type represents a sell operation."""
         return self == TransactionType.SELL
@@ -168,7 +168,7 @@ class Config:
     def from_dict(cls, data: dict) -> 'Config':
         """Create a Config instance from a dictionary."""
         security_type = SecurityType(data['type'])
-        
+
         # For stocks, OEKB fields are optional and default to None/0
         if security_type == SecurityType.STOCK:
             return cls(
@@ -184,7 +184,7 @@ class Config:
                 starting_moving_avg_price=float(data['starting_moving_avg_price']),
                 isin=data['isin']
             )
-        
+
         # For ETFs, all OEKB fields are required
         return cls(
             security_type=security_type,
@@ -199,6 +199,7 @@ class Config:
             starting_moving_avg_price=float(data['starting_moving_avg_price']),
             isin=data['isin']
         )
+
 
 @dataclass
 class ComputedTransaction:
@@ -217,10 +218,11 @@ class ComputedTransaction:
     def total_price(self) -> float:
         """Calculate total price of transaction. Override in subclasses."""
         raise NotImplementedError
-    
+
     def type_name(self) -> str:
         """Return transaction type name. Override in subclasses."""
         raise NotImplementedError
+
 
 @dataclass
 class BuyTransaction(ComputedTransaction):
@@ -243,12 +245,13 @@ class BuyTransaction(ComputedTransaction):
             quantity=float(transaction.shares),
             share_price=float(transaction.price)
         )
-        
+
     def total_price(self) -> float:
         return round(self.quantity * self.share_price, 4)
-    
+
     def type_name(self) -> str:
         return "BUY"
+
 
 @dataclass
 class SellTransaction(ComputedTransaction):
@@ -257,7 +260,7 @@ class SellTransaction(ComputedTransaction):
     """
     quantity: float
     share_price: float
-    
+
     def __init__(self, date: datetime, quantity: float, share_price: float):
         super().__init__(date)
         self.quantity = quantity
@@ -271,12 +274,13 @@ class SellTransaction(ComputedTransaction):
             quantity=float(transaction.shares),
             share_price=float(transaction.price)
         )
-    
+
     def total_price(self) -> float:
         return round(self.quantity * self.share_price, 4)
-    
+
     def type_name(self) -> str:
         return "SELL"
+
 
 @dataclass
 class AdjustmentTransaction(ComputedTransaction):
@@ -286,16 +290,17 @@ class AdjustmentTransaction(ComputedTransaction):
     Used when OeKB adjustment factors need to be applied.
     """
     adjustment_factor: float
-    
+
     def __init__(self, date: datetime, adjustment_factor: float):
         super().__init__(date)
         self.adjustment_factor = adjustment_factor
-    
+
     def type_name(self) -> str:
         return "ADJ"
-    
+
     def total_price(self) -> float:
         return 0.0
+
 
 @dataclass
 class TaxCalculationResult:
@@ -309,24 +314,24 @@ class TaxCalculationResult:
     isin: str
     report_currency: str
     security_type: SecurityType
-    
+
     # Report dates
     start_date: datetime
-    end_date: datetime 
+    end_date: datetime
     report_date: datetime
-    
+
     # OeKB factors
     distribution_equivalent_income_factor: float
     taxes_paid_abroad_factor: float
     adjustment_factor: float
-    
+
     # ECB exchange rate
     ecb_exchange_rate: float
 
     # Computed values from OeKB factors
     distribution_equivalent_income: float
     taxes_paid_abroad: float
-    
+
     # Total capital gains
     total_capital_gains: float
 
