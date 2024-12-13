@@ -38,7 +38,7 @@ Before using this tool, you'll need:
 
 ## Configuration
 
-1. Create a JSON configuration file (e.g., `config.json`) with your fund details:
+1. Create a JSON configuration file (e.g., `config.json`) with your securities details:
     ```json
     [
       {
@@ -59,7 +59,8 @@ Before using this tool, you'll need:
         "isin": "IE00B4L5Y983",
         // The security type (either "accumulating_etf" or "stock")
         "security_type": "accumulating_etf"
-      }
+      },
+      // Additional securities can be added here
     ]
     ```
 
