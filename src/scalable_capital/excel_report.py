@@ -76,7 +76,7 @@ class ExcelReportGenerator:
             'Metric': [
                 'Starting Moving Avg Price',
                 'Final Moving Avg Price',
-                'ECB Exchange Rate'
+                f'ECB Exchange Rate ({result.report_currency} → EUR)'
             ],
             'Value': [
                 round(result.starting_moving_avg_price, 4),

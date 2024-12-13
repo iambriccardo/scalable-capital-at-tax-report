@@ -26,11 +26,10 @@ class TerminalReportGenerator:
         print(f"  • Adjustment: {config.oekb_adjustment_factor:.4f}\n")
 
         print(
-            f"Exchange rate ({config.oekb_report_currency} → EUR) at {config.oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate:.4f}")
+            f"ECB Exchange rate ({config.oekb_report_currency} → EUR) at {config.oekb_report_date.strftime('%d/%m/%Y')}: {ecb_exchange_rate:.4f}")
 
     @staticmethod
-    def print_transactions(config: Config, computed_transactions: List[ComputedTransaction],
-                         total_quantity: float) -> None:
+    def print_transactions(config: Config, computed_transactions: List[ComputedTransaction]) -> None:
         """Print the transaction details including headers and computed values."""
         print("\n" + "=" * 90)
         print(f"{'TRANSACTIONS':^90}")
@@ -47,10 +46,11 @@ class TerminalReportGenerator:
 
         # Print all transactions
         for value in computed_transactions:
-            if isinstance(value, AdjustmentTransaction) and total_quantity != 0.0:
+            if isinstance(value, AdjustmentTransaction):
                 print(
-                    f"{config.oekb_report_date.strftime('%d/%m/%Y'):12} {value.type_name():8} "
-                    f"{'Adjustment of moving avg:':<26} {value.adjustment_factor:>14.4f} {value.total_quantity:>12.3f}")
+                    f"{value.date.strftime('%d/%m/%Y'):12} {value.type_name():8} {0.0:>12.3f} "
+                    f"{0.0:>14.3f} {value.total_price():>14.4f} {value.moving_avg_price:>14.4f} "
+                    f"{value.total_quantity:>12.3f}")
             elif isinstance(value, (BuyTransaction, SellTransaction)):
                 print(
                     f"{value.date.strftime('%d/%m/%Y'):12} {value.type_name():8} {value.quantity:>12.3f} "
@@ -141,8 +141,7 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
                 starting_moving_avg_price=result.starting_moving_avg_price,
                 isin=result.isin
             ),
-            result.computed_transactions,
-            result.total_quantity
+            result.computed_transactions
         )
 
         # Print capital gains
