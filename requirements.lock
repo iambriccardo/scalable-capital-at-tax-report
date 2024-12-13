@@ -8,7 +8,7 @@
 #   with-sources: false
 
 -e file:.
-currencyconverter==0.17.17
+currencyconverter==0.18.1
     # via scalable-capital
 numpy==2.2.0
     # via scalable-capital

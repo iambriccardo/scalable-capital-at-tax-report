@@ -37,12 +37,12 @@ class ExcelReportGenerator:
                 'Share Price': round(t.share_price, 3) if hasattr(t, 'share_price') else 0,
                 'Total Price': round(t.total_price(), 4) if hasattr(t, 'total_price') else 0,
                 'Moving Avg Price': round(t.moving_avg_price, 4) if hasattr(t, 'moving_avg_price') else 0,
-                'Total Quantity': round(t.total_quantity, 3)  # Use total_quantity from the model
+                'Total Quantity': round(t.total_quantity, 3)
             }
             data.append(transaction_data)
 
         df = pd.DataFrame(data)
-        return df.sort_values('Date')
+        return df
 
     def _create_tax_summary_df(self, result: TaxCalculationResult) -> List[pd.DataFrame]:
         """Create DataFrames with tax calculation summary sections for a specific ISIN."""

@@ -92,19 +92,21 @@ class TerminalReportGenerator:
         print(f"Current total shares:                         {total_quantity:,.3f}")
 
     @staticmethod
-    def print_final_summary(total_distribution_equivalent_income: float, total_taxes_paid_abroad: float) -> None:
+    def print_final_summary(total_distribution_equivalent_income: float, total_taxes_paid_abroad: float, total_capital_gains: float) -> None:
         """Print the final summary of all calculations."""
         print("\n" + "=" * 80)
-        print(f"{'FINAL SUMMARY (ALL FUNDS)':^80}")
+        print(f"{'FINAL SUMMARY (ALL SECURITIES)':^80}")
         print("=" * 80 + "\n")
 
         # We have to round to 2 decimals since this is what Finanzonline expects
         dei = round(total_distribution_equivalent_income, 2)
         tpa = round(total_taxes_paid_abroad, 2)
-        projected = round((total_distribution_equivalent_income * 0.275) - total_taxes_paid_abroad, 2)
+        cg = round(total_capital_gains, 2)
+        projected = round(((total_distribution_equivalent_income + total_capital_gains) * 0.275) - total_taxes_paid_abroad, 2)
 
         print(f"{'Distribution equivalent income (936/937):':<50} {dei:>10.2f} EUR")
         print(f"{'Taxes paid abroad (984/998):':<50} {tpa:>10.2f} EUR")
+        print(f"{'Total capital gains:':<50} {cg:>10.2f} EUR")
         print(f"\n{'Projected taxes to pay:':<50} {projected:>10.2f} EUR")
         print("\nNote: All amounts are rounded to 2 decimal places as required by Finanzonline.")
 
@@ -114,6 +116,7 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
     generator = TerminalReportGenerator()
     total_distribution_equivalent_income = 0
     total_taxes_paid_abroad = 0
+    total_capital_gains = 0
 
     for result in tax_results:
         # Print fund details
@@ -181,6 +184,7 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
 
         total_distribution_equivalent_income += result.distribution_equivalent_income
         total_taxes_paid_abroad += result.taxes_paid_abroad
+        total_capital_gains += result.total_capital_gains
 
     # Print final summary
-    generator.print_final_summary(total_distribution_equivalent_income, total_taxes_paid_abroad)
+    generator.print_final_summary(total_distribution_equivalent_income, total_taxes_paid_abroad, total_capital_gains)

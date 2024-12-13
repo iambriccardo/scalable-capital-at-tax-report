@@ -126,12 +126,10 @@ class TaxCalculator:
             ecb_exchange_rate = 1.0
 
         # Process transactions
-        computed_transactions = self._prepare_transactions(isin_transactions, config)
-        computed_transactions = self._insert_adjustment_factor(
-            computed_transactions,
-            config,
-            ecb_exchange_rate
-        )
+        computed_transactions = self._prepare_transactions(isin_transactions, config, ecb_exchange_rate)
+        
+        for transaction in computed_transactions:
+            print(transaction)
 
         # Calculate moving average price
         total_quantity, total_quantity_before_report, total_capital_gains, final_moving_avg_price = self._calculate_rolling_totals(
@@ -175,12 +173,14 @@ class TaxCalculator:
     def calculate_taxes(self) -> List[TaxCalculationResult]:
         """Calculate taxes for all configured funds."""
         results = []
+        
         for config in self.configs:
             result = self._process_single_security(config)
             results.append(result)
+            
         return results
 
-    def _prepare_transactions(self, isin_transactions: List[Transaction], config: Config) -> List[ComputedTransaction]:
+    def _prepare_transactions(self, isin_transactions: List[Transaction], config: Config, ecb_exchange_rate: float) -> List[ComputedTransaction]:
         """Prepare and validate transactions for processing."""
         computed_transactions = []
         for transaction in isin_transactions:
@@ -195,28 +195,16 @@ class TaxCalculator:
                 elif transaction.type.is_sell():
                     computed_transactions.append(SellTransaction.from_transaction(transaction))
 
-        return sorted(computed_transactions, key=lambda t: t.date)
+        # Add adjustment factor if the security is an accumulating ETF, since we need that to calculate the moving average price.
+        if config.security_type == SecurityType.ACCUMULATING_ETF:
+            if config.start_date <= config.oekb_report_date <= config.end_date:
+                computed_transactions.append(AdjustmentTransaction(
+                    date=config.oekb_report_date,
+                    adjustment_factor=self._compute_adjustment_factor(config, ecb_exchange_rate)
+                ))
 
-    def _insert_adjustment_factor(self, computed_transactions: List[ComputedTransaction], config: Config,
-                                  ecb_exchange_rate: float) -> List[ComputedTransaction]:
-        """Insert the adjustment factor at the appropriate position in the transaction list."""
-        if config.security_type != SecurityType.ACCUMULATING_ETF:
-            return computed_transactions
-
-        insertion_index = 0
-        for index, value in enumerate(computed_transactions):
-            if config.oekb_report_date >= value.date:
-                insertion_index = index + 1
-
-        computed_transactions.insert(
-            insertion_index,
-            AdjustmentTransaction(
-                date=config.oekb_report_date,
-                adjustment_factor=self._compute_adjustment_factor(config, ecb_exchange_rate)
-            )
-        )
-
-        return computed_transactions
+        # Sort transactions by date, with adjustment transactions last, the idea is to have the adjustment factor before any of the same dates.
+        return sorted(computed_transactions, key=lambda t: (t.date, not isinstance(t, AdjustmentTransaction)))
 
     def _handle_adjustment_transaction(
             self,
@@ -285,8 +273,10 @@ class TaxCalculator:
             transaction: SellTransaction,
             total_quantity: float,
             total_quantity_before_report: float,
+            total_capital_gains: float,
+            moving_avg_price: float,
             report_date: str | None
-    ) -> Tuple[float, float]:
+    ) -> Tuple[float, float, float]:
         """
         Process a sell transaction and update quantities.
 
@@ -294,11 +284,15 @@ class TaxCalculator:
             transaction: The sell transaction to process
             total_quantity: Current total quantity
             total_quantity_before_report: Quantity before report date
+            total_capital_gains: Current total capital gains
+            moving_avg_price: Current moving average price
             report_date: The OeKB report date
 
         Returns:
-            Tuple of (new_total_quantity, new_total_quantity_before_report)
+            Tuple of (new_total_quantity, new_total_quantity_before_report, new_total_capital_gains)
         """
+        transaction.moving_avg_price = moving_avg_price
+                
         new_total_quantity = round(total_quantity - transaction.quantity, 3)
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
@@ -306,7 +300,12 @@ class TaxCalculator:
         if report_date is not None and transaction.date <= report_date:
             new_total_quantity_before_report = round(total_quantity_before_report - transaction.quantity, 3)
 
-        return new_total_quantity, new_total_quantity_before_report
+        new_total_capital_gains = round(
+            (transaction.quantity * (transaction.share_price - moving_avg_price)) + total_capital_gains,
+            4
+        )
+
+        return new_total_quantity, new_total_quantity_before_report, new_total_capital_gains
 
     def _calculate_rolling_totals(
             self,
@@ -345,8 +344,8 @@ class TaxCalculator:
                     moving_avg_price, config.oekb_report_date
                 )
             elif isinstance(transaction, SellTransaction):
-                total_quantity, total_quantity_before_report = self._handle_sell_transaction(
-                    transaction, total_quantity, total_quantity_before_report, config.oekb_report_date
+                total_quantity, total_quantity_before_report, total_capital_gains = self._handle_sell_transaction(
+                    transaction, total_quantity, total_quantity_before_report, total_capital_gains, moving_avg_price, config.oekb_report_date
                 )
 
         return total_quantity, total_quantity_before_report, total_capital_gains, moving_avg_price
