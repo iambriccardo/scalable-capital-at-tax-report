@@ -25,7 +25,8 @@ class ExcelReportGenerator:
             'Quantity': round(result.starting_quantity, 3),
             'Share Price': 0,
             'Total Price': 0,
-            'Moving Avg Price': round(result.starting_moving_avg_price, 4)
+            'Moving Avg Price': round(result.starting_moving_avg_price, 4),
+            'Total Quantity': round(result.starting_quantity, 3)  # Initial total quantity
         })
 
         for t in result.computed_transactions:
@@ -35,7 +36,8 @@ class ExcelReportGenerator:
                 'Quantity': round(t.quantity, 3) if hasattr(t, 'quantity') else 0,
                 'Share Price': round(t.share_price, 3) if hasattr(t, 'share_price') else 0,
                 'Total Price': round(t.total_price(), 4) if hasattr(t, 'total_price') else 0,
-                'Moving Avg Price': round(t.moving_avg_price, 4) if hasattr(t, 'moving_avg_price') else 0
+                'Moving Avg Price': round(t.moving_avg_price, 4) if hasattr(t, 'moving_avg_price') else 0,
+                'Total Quantity': round(t.total_quantity, 3)  # Use total_quantity from the model
             }
             data.append(transaction_data)
 
@@ -65,7 +67,7 @@ class ExcelReportGenerator:
             'Value': [
                 round(result.starting_quantity, 3),
                 round(result.total_quantity_before_report, 3),
-                round(result.total_quantity, 3),
+                round(result.total_quantity, 3)
             ]
         }
 
@@ -233,8 +235,8 @@ class ExcelReportGenerator:
                             elif metric in ['Starting Quantity', 'Quantity at Report Date',
                                             'Final Quantity']:
                                 worksheet.write(row_num, 1, value, number_format_3d)
-                            elif metric in ['Distribution Equivalent Income (EUR)',
-                                            'Taxes Paid Abroad (EUR)']:
+                            elif metric in ['Distribution Equivalent Income (EUR) (936/937)',
+                                            'Taxes Paid Abroad (EUR) (984/998)']:
                                 worksheet.write(row_num, 1, value, number_format_2d)
                             elif metric == 'ISIN':
                                 worksheet.write(row_num, 1, value, cell_format)

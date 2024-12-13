@@ -174,6 +174,7 @@ class ComputedTransaction:
 
     def __init__(self, date: datetime):
         self.date = date
+        self.total_quantity = 0.0
         self.moving_avg_price = 0.0
 
     def total_price(self) -> float:

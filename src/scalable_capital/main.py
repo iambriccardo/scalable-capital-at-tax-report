@@ -10,6 +10,7 @@ from typing import List
 from scalable_capital.excel_report import generate_excel_report
 from scalable_capital.models import Config
 from scalable_capital.tax_calculator import TaxCalculator
+from scalable_capital.terminal_report import generate_terminal_report
 
 
 def load_configs(config_path: str) -> List[Config]:
@@ -44,6 +45,9 @@ def main():
     # Initialize and run calculator
     calculator = TaxCalculator(configs, csv_path)
     tax_results = calculator.calculate_taxes()
+
+    # Generate terminal report
+    generate_terminal_report(tax_results, csv_path)
 
     # Generate Excel report if requested
     if excel_path:
