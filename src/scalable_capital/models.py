@@ -147,7 +147,7 @@ class Config:
     # End date of the period under consideration
     end_date: datetime
     # Date of the OEKB report
-    oekb_report_date: datetime
+    oekb_report_date: datetime | None
     # Auschüttungsgleiche Erträge 27,5% (Kennzahlen 936 oder 937)
     oekb_distribution_equivalent_income_factor: float
     # Anzurechnende ausländische (Quellen)Steuer auf Einkünfte,
@@ -156,7 +156,7 @@ class Config:
     # Die Anschaffungskosten des Fondsanteils sind zu korrigieren um
     oekb_adjustment_factor: float
     # OEKB report currency
-    oekb_report_currency: str
+    oekb_report_currency: str | None
     # Starting quantity of the report of the previous year
     starting_quantity: float
     # Starting moving average price of the report of the previous year

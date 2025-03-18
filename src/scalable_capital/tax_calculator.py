@@ -183,6 +183,7 @@ class TaxCalculator:
                     f"\n[ERROR]: Skipping transaction with type = {transaction.type.value}, status={transaction.status}")
                 continue
 
+            # We filter the transactions that are within the time period that is specified
             if config.start_date <= transaction.date <= config.end_date:
                 if transaction.type.is_buy():
                     computed_transactions.append(BuyTransaction.from_transaction(transaction))

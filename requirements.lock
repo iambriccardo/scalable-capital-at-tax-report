@@ -6,21 +6,24 @@
 #   features: []
 #   all-features: false
 #   with-sources: false
+#   generate-hashes: false
+#   universal: false
 
 -e file:.
-currencyconverter==0.18.1
+currencyconverter==0.18.4
     # via scalable-capital
-numpy==2.2.0
+numpy==2.2.4
+    # via pandas
     # via scalable-capital
 pandas==2.2.3
     # via scalable-capital
 python-dateutil==2.9.0.post0
     # via pandas
-pytz==2024.2
+pytz==2025.1
     # via pandas
 six==1.17.0
     # via python-dateutil
-tzdata==2024.2
+tzdata==2025.1
     # via pandas
-xlsxwriter==3.2.0
+xlsxwriter==3.2.2
     # via scalable-capital
