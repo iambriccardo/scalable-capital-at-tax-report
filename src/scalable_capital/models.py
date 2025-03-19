@@ -169,7 +169,7 @@ class Config:
         """Create a Config instance from a dictionary."""
         security_type = SecurityType(data['type'])
 
-        # For stocks, OEKB fields are optional and default to None/0
+        # For stocks, OEKB fields are optional and default to None/0.
         if security_type == SecurityType.STOCK:
             return cls(
                 security_type=security_type,
@@ -185,16 +185,22 @@ class Config:
                 isin=data['isin']
             )
 
-        # For ETFs, all OEKB fields are required
+        # We check if the ETF has a report date, otherwise we just default it to None, meaning no OEKB related
+        # data will be computed.
+        if (oekb_report_date := data.get('oekb_report_date')) is not None:
+            oekb_report_date = datetime.strptime(oekb_report_date, '%d/%m/%Y')
+        else:
+            oekb_report_date = None
+
         return cls(
             security_type=security_type,
             start_date=datetime.strptime(data['start_date'], '%d/%m/%Y'),
             end_date=datetime.strptime(data['end_date'], '%d/%m/%Y'),
-            oekb_report_date=datetime.strptime(data['oekb_report_date'], '%d/%m/%Y'),
-            oekb_distribution_equivalent_income_factor=float(data['oekb_distribution_equivalent_income_factor']),
-            oekb_taxes_paid_abroad_factor=float(data['oekb_taxes_paid_abroad_factor']),
-            oekb_adjustment_factor=float(data['oekb_adjustment_factor']),
-            oekb_report_currency=data['oekb_report_currency'],
+            oekb_report_date=oekb_report_date,
+            oekb_distribution_equivalent_income_factor=float(data.get('oekb_distribution_equivalent_income_factor', 0.0)),
+            oekb_taxes_paid_abroad_factor=float(data.get('oekb_taxes_paid_abroad_factor', 0.0)),
+            oekb_adjustment_factor=float(data.get('oekb_adjustment_factor', 0.0)),
+            oekb_report_currency=data.get('oekb_report_currency'),
             starting_quantity=float(data['starting_quantity']),
             starting_moving_avg_price=float(data['starting_moving_avg_price']),
             isin=data['isin']
@@ -318,7 +324,7 @@ class TaxCalculationResult:
     # Report dates
     start_date: datetime
     end_date: datetime
-    report_date: datetime
+    report_date: datetime | None
 
     # OeKB factors
     distribution_equivalent_income_factor: float

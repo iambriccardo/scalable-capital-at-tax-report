@@ -22,8 +22,8 @@ class TerminalReportGenerator:
         print(f"Security Type: {config.security_type.value}")
         print(f"Data file: {csv_file_path}\n")
 
-        # Only show OEKB factors for accumulating ETFs
-        if config.security_type == SecurityType.ACCUMULATING_ETF:
+        # Only show OEKB factors for accumulating ETFs and when a report is there
+        if config.security_type == SecurityType.ACCUMULATING_ETF and config.oekb_report_date is not None:
             print("OeKB Factors:")
             print(f"  • Distribution equivalent income: {config.oekb_distribution_equivalent_income_factor:.4f}")
             print(f"  • Taxes paid abroad: {config.oekb_taxes_paid_abroad_factor:.4f}")
@@ -86,7 +86,7 @@ class TerminalReportGenerator:
         print("=" * 80 + "\n")
 
         print(f"Starting shares:                              {config.starting_quantity:,.3f}")
-        if config.security_type == SecurityType.ACCUMULATING_ETF:
+        if config.security_type == SecurityType.ACCUMULATING_ETF and config.oekb_report_date is not None:
             print(
                 f"Total shares before OeKB report ({config.oekb_report_date.strftime('%d/%m/%Y')}): {total_quantity_before_report:,.3f}")
         print(f"Current total shares:                         {total_quantity:,.3f}")

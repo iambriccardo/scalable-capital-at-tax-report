@@ -9,6 +9,7 @@ The calculator processes transactions for investment funds and calculates:
 - Capital gains
 """
 import csv
+from datetime import datetime
 from typing import List, Tuple
 
 from currency_converter import CurrencyConverter
@@ -114,8 +115,8 @@ class TaxCalculator:
         starting_total_quantity_before_report = starting_total_quantity
         starting_moving_avg_price = config.starting_moving_avg_price
 
-        # Get ECB exchange rate
-        if config.security_type == SecurityType.ACCUMULATING_ETF:
+        # Get ECB exchange rate if set, otherwise just use 1.0
+        if config.oekb_report_currency is not None:
             ecb_exchange_rate = CurrencyConverter().convert(
                 1, config.oekb_report_currency, date=config.oekb_report_date
             )
@@ -192,7 +193,7 @@ class TaxCalculator:
 
         # Add adjustment factor if the security is an accumulating ETF, since we need that to calculate the moving average price.
         if config.security_type == SecurityType.ACCUMULATING_ETF:
-            if config.start_date <= config.oekb_report_date <= config.end_date:
+            if config.oekb_report_date is not None and config.start_date <= config.oekb_report_date <= config.end_date:
                 computed_transactions.append(AdjustmentTransaction(
                     date=config.oekb_report_date,
                     adjustment_factor=self._compute_adjustment_factor(config, ecb_exchange_rate)
@@ -232,7 +233,7 @@ class TaxCalculator:
             total_quantity: float,
             total_quantity_before_report: float,
             moving_avg_price: float,
-            report_date: str | None
+            report_date: datetime | None
     ) -> Tuple[float, float, float]:
         """Process a buy transaction and update quantities and moving average price."""
         new_moving_avg_price = (
@@ -257,7 +258,7 @@ class TaxCalculator:
             total_quantity_before_report: float,
             total_capital_gains: float,
             moving_avg_price: float,
-            report_date: str | None
+            report_date: datetime | None
     ) -> Tuple[float, float, float]:
         """Process a sell transaction and update quantities."""
         transaction.moving_avg_price = moving_avg_price

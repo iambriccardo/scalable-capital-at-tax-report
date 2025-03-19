@@ -55,8 +55,8 @@ class ExcelReportGenerator:
             pd.to_datetime(result.end_date),
         ]
 
-        # Add report date only for accumulating ETFs
-        if result.security_type == SecurityType.ACCUMULATING_ETF:
+        # Add report date only for accumulating ETFs that reported
+        if result.security_type == SecurityType.ACCUMULATING_ETF and result.report_date is not None:
             basic_info_metrics.append('Report Date')
             basic_info_values.append(pd.to_datetime(result.report_date))
 
