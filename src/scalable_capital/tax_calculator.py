@@ -199,7 +199,7 @@ class TaxCalculator:
                     adjustment_factor=self._compute_adjustment_factor(config, ecb_exchange_rate)
                 ))
 
-        # Sort transactions by date, with adjustment transactions last, the idea is to have the adjustment factor before any of the same dates.
+        # Sort transactions by date with the idea to have the adjustment factor before any of the same dates.
         return sorted(computed_transactions, key=lambda t: (t.date, not isinstance(t, AdjustmentTransaction)))
 
     def _handle_adjustment_transaction(
@@ -246,6 +246,7 @@ class TaxCalculator:
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
 
+        # We consider any buy in the same day as the report date to be counted towards that report.
         if report_date is not None and transaction.date <= report_date:
             new_total_quantity_before_report = total_quantity_before_report + transaction.quantity
 
@@ -267,6 +268,7 @@ class TaxCalculator:
         transaction.total_quantity = new_total_quantity
         new_total_quantity_before_report = total_quantity_before_report
 
+        # We consider any sell in the same day as the report date to be counted towards that report.
         if report_date is not None and transaction.date <= report_date:
             new_total_quantity_before_report = total_quantity_before_report - transaction.quantity
 
