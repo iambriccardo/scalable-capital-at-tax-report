@@ -10,12 +10,14 @@ from scalable_capital.models import TaxCalculationResult, SecurityType
 
 
 class ExcelReportGenerator:
+    """Create an Excel workbook summarising all tax calculations."""
+
     def __init__(self, tax_results: List[TaxCalculationResult]):
-        """Initialize the Excel report generator with a list of calculation results."""
+        """Store the list of calculation results to export."""
         self.tax_results = tax_results
 
     def _create_transaction_df(self, result: TaxCalculationResult) -> pd.DataFrame:
-        """Create a DataFrame with transactions for a specific ISIN from a tax result."""
+        """Return a DataFrame listing all transactions for ``result``."""
         data = []
 
         # Add initial position with starting date, quantity, and moving avg price
@@ -45,7 +47,7 @@ class ExcelReportGenerator:
         return df
 
     def _create_tax_summary_df(self, result: TaxCalculationResult) -> List[pd.DataFrame]:
-        """Create DataFrames with tax calculation summary sections for a specific ISIN."""
+        """Build the summary sections for ``result`` as a list of DataFrames."""
         # Basic Information - Common for all security types
         basic_info_metrics = ['ISIN', 'Security Type', 'Start Date', 'End Date']
         basic_info_values = [
@@ -147,8 +149,8 @@ class ExcelReportGenerator:
 
         return sections
 
-    def generate_report(self, output_path: str):
-        """Generate an Excel report with transactions and tax calculations per ISIN."""
+    def generate_report(self, output_path: str) -> None:
+        """Write an Excel file with one sheet per ISIN."""
         with pd.ExcelWriter(output_path, engine='xlsxwriter') as writer:
             workbook = writer.book
 
@@ -277,6 +279,6 @@ class ExcelReportGenerator:
 
 
 def generate_excel_report(tax_results: List[TaxCalculationResult], output_path: str):
-    """Convenience function to generate an Excel report."""
+    """Generate an Excel report for ``tax_results`` and save it to ``output_path``."""
     generator = ExcelReportGenerator(tax_results)
     generator.generate_report(output_path)

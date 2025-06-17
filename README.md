@@ -75,7 +75,7 @@ Before using this tool, you'll need:
 
 2. Save your transaction data CSV file in a convenient location.
 
-3. Launch the script using Rye. You have two output options:
+3. Launch the script using Rye (the CLI now uses ``argparse``). You have two output options:
    ```shell
    # For terminal output only:
    rye run python src/scalable_capital/main.py path/to/config.json path/to/transactions.csv

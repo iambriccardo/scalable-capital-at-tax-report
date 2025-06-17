@@ -1,7 +1,4 @@
-"""
-Terminal report generator for Austrian investment fund tax calculations.
-Creates detailed console output with transaction data and tax calculations.
-"""
+"""Utilities for generating a detailed terminal report of the calculations."""
 from typing import List
 
 from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, \
@@ -9,7 +6,7 @@ from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTran
 
 
 class TerminalReportGenerator:
-    """Generates formatted terminal output for tax calculation results."""
+    """Utility class to pretty-print calculation results to the terminal."""
 
     @staticmethod
     def print_fund_details(config: Config, ecb_exchange_rate: float, csv_file_path: str) -> None:
@@ -111,8 +108,10 @@ class TerminalReportGenerator:
         print("\nNote: All amounts are rounded to 2 decimal places as required by Finanzonline.")
 
 
-def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_path: str) -> None:
-    """Generate terminal output for tax calculation results."""
+def generate_terminal_report(
+    tax_results: List[TaxCalculationResult], csv_file_path: str
+) -> None:
+    """Print a full summary of all calculation results to the terminal."""
     generator = TerminalReportGenerator()
     total_distribution_equivalent_income = 0
     total_taxes_paid_abroad = 0
