@@ -2,6 +2,7 @@
 Terminal report generator for Austrian investment fund tax calculations.
 Creates detailed console output with transaction data and tax calculations.
 """
+import os
 from typing import List
 
 from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, \
@@ -20,7 +21,8 @@ class TerminalReportGenerator:
 
         print(f"Config ISIN: {config.isin}")
         print(f"Security Type: {config.security_type.value}")
-        print(f"Data file: {csv_file_path}\n")
+        print(f"\n📁 Data file:")
+        print(f"   {os.path.abspath(csv_file_path)}\n")
 
         # Only show OEKB factors for accumulating ETFs and when a report is there
         if config.security_type == SecurityType.ACCUMULATING_ETF and config.oekb_report_date is not None:

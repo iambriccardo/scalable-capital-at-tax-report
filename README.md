@@ -37,10 +37,16 @@ A Python-based tool for calculating Austrian investment taxes for ETFs and stock
 
 Before using this tool, you'll need to gather:
 
-1. **Scalable Capital Transaction History**
-   - Export from Scalable Capital web interface
-   - Navigate to "Transactions" → "Export transactions"
-   - Save as CSV file containing all your transactions
+1. **Scalable Capital Transaction History** (CSV or JSON format)
+   - **Option 1: CSV Export** (Official export from web interface)
+     - Navigate to "Transactions" → "Export transactions"
+     - Save as CSV file containing all your transactions
+
+   - **Option 2: JSON from API** (Direct API response)
+     - Navigate to: `https://de.scalable.capital/broker/api/data`
+     - Copy the entire JSON response (Ctrl+A, Ctrl+C)
+     - Save it to a `.json` file
+     - The tool will automatically convert it to CSV format
 
 2. **OeKB Report Data** (for accumulating ETFs only)
    - Visit [OeKB website](https://my.oekb.at/kapitalmaerkte-services/kms-output/fonds-info/sd/af/f)
@@ -116,21 +122,43 @@ Create a JSON configuration file (e.g., `config.json`) with your securities deta
 
 ### Basic Usage
 
-1. **Export Transaction History**
+1. **Get Transaction History**
+
+   **Option A: CSV Export**
    - Log into your Scalable Capital account
    - Go to "Transactions" section
    - Click "Export transactions" and save the CSV file
 
+   **Option B: JSON from API**
+   - Navigate to `https://de.scalable.capital/broker/api/data` in your browser
+   - Copy the entire JSON response (Ctrl+A, Ctrl+C or Cmd+A, Cmd+C on Mac)
+   - Paste into a text editor and save as `.json` file (e.g., `transactions.json`)
+
 2. **Run the Calculator**
 
-   **Terminal output only:**
+   **With CSV file (terminal output only):**
    ```bash
    rye run python src/scalable_capital/main.py path/to/config.json path/to/transactions.csv
    ```
 
+   **With JSON file (automatic conversion):**
+   ```bash
+   rye run python src/scalable_capital/main.py path/to/config.json path/to/transactions.json
+   ```
+
+   When using JSON:
+   - The tool will automatically detect it's a JSON file
+   - Convert it to CSV format (only security transactions, excludes cash)
+   - Display the full path to the generated CSV file
+   - Show you a preview of the converted data
+   - Ask for your confirmation before proceeding
+   - Save the CSV as `transactions_converted.csv` for future use
+
    **Generate Excel report:**
    ```bash
    rye run python src/scalable_capital/main.py path/to/config.json path/to/transactions.csv output.xlsx
+   # or with JSON:
+   rye run python src/scalable_capital/main.py path/to/config.json path/to/transactions.json output.xlsx
    ```
 
 ### Output
@@ -213,7 +241,47 @@ The calculator processes various transaction types:
 
 ## Examples
 
-### Example 1: Single ETF Configuration
+### Example 1: Using JSON from API
+
+If you have a JSON file from the Scalable Capital API:
+
+```bash
+rye run python src/scalable_capital/main.py config.json transactions.json
+```
+
+The tool will:
+1. Detect it's a JSON file
+2. Convert to CSV format automatically
+3. Show you a preview:
+   ```
+   ============================================================================
+   JSON FILE DETECTED
+   ============================================================================
+
+   Input JSON file: /full/path/to/transactions.json
+   Converting to CSV format...
+   (Skipped 34 cash transactions - only security transactions are included)
+   ✓ Conversion successful!
+   ✓ Converted 16 transactions
+
+   📁 Output CSV location:
+      /full/path/to/transactions_converted.csv
+
+   ============================================================================
+   CSV PREVIEW (all rows):
+   ============================================================================
+   Reading from: /full/path/to/transactions_converted.csv
+   ----------------------------------------------------------------------------
+   date         | time      | status    | ...
+   2025-03-10   | 10:33:23  | Executed  | ...
+   2025-02-10   | 10:08:59  | Executed  | ...
+   ... (all rows displayed)
+
+   Does the CSV look correct? Continue with tax calculation? (yes/no):
+   ```
+4. After you confirm, proceed with normal tax calculation
+
+### Example 2: Single ETF Configuration
 
 ```json
 [
@@ -233,7 +301,7 @@ The calculator processes various transaction types:
 ]
 ```
 
-### Example 2: Multiple Securities Configuration
+### Example 3: Multiple Securities Configuration
 
 ```json
 [

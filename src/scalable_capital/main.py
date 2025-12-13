@@ -5,12 +5,14 @@ Processes OeKB reports and transaction data to calculate taxable amounts.
 import json
 import os
 import sys
+import csv
 from typing import List
 
 from scalable_capital.excel_report import generate_excel_report
 from scalable_capital.models import Config
 from scalable_capital.tax_calculator import TaxCalculator
 from scalable_capital.terminal_report import generate_terminal_report
+from scalable_capital.json_converter import convert_json_to_csv
 
 
 def load_configs(config_path: str) -> List[Config]:
@@ -20,24 +22,153 @@ def load_configs(config_path: str) -> List[Config]:
         return [Config.from_dict(c) for c in config_data]
 
 
+def is_json_file(file_path: str) -> bool:
+    """Check if a file is a JSON file based on extension and content."""
+    if file_path.lower().endswith('.json'):
+        return True
+    # Also try to detect by parsing
+    try:
+        with open(file_path, 'r') as f:
+            json.load(f)
+        return True
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False
+
+
+def display_csv_preview(csv_path: str, max_rows: int = None):
+    """Display a preview of the CSV file."""
+    print("\n" + "=" * 140)
+    if max_rows:
+        print("CSV PREVIEW (first {} rows):".format(max_rows))
+    else:
+        print("CSV PREVIEW (all rows):")
+    print("=" * 140)
+    print(f"Reading from: {os.path.abspath(csv_path)}")
+    print("-" * 140)
+
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter=';')
+        rows = list(reader)
+
+        if not rows:
+            print("(empty file)")
+            return
+
+        # Print header
+        headers = list(rows[0].keys())
+        header_line = " | ".join(f"{h[:12]:12}" for h in headers)
+        print(header_line)
+        print("-" * len(header_line))
+
+        # Print rows (all or limited)
+        rows_to_display = rows[:max_rows] if max_rows else rows
+        for i, row in enumerate(rows_to_display):
+            values = [str(row[h])[:12] for h in headers]
+            print(" | ".join(f"{v:12}" for v in values))
+
+        if max_rows and len(rows) > max_rows:
+            print(f"\n... and {len(rows) - max_rows} more rows")
+
+        print(f"\nTotal transactions: {len(rows)}")
+    print("=" * 140)
+
+
+def get_user_confirmation(prompt: str = "Do you want to continue?") -> bool:
+    """Ask user for confirmation."""
+    while True:
+        response = input(f"\n{prompt} (yes/no): ").strip().lower()
+        if response in ['yes', 'y']:
+            return True
+        elif response in ['no', 'n']:
+            return False
+        else:
+            print("Please enter 'yes' or 'no'")
+
+
+def handle_json_conversion(json_path: str) -> str:
+    """
+    Convert JSON file to CSV and get user confirmation.
+
+    Args:
+        json_path: Path to the JSON file
+
+    Returns:
+        Path to the generated CSV file
+
+    Raises:
+        SystemExit: If user cancels the operation
+    """
+    # Generate output CSV path
+    base_name = os.path.splitext(json_path)[0]
+    csv_output_path = f"{base_name}_converted.csv"
+    csv_absolute_path = os.path.abspath(csv_output_path)
+
+    print("\n" + "=" * 140)
+    print("JSON FILE DETECTED")
+    print("=" * 140)
+    print(f"\nInput JSON file: {os.path.abspath(json_path)}")
+    print(f"Converting to CSV format...")
+
+    try:
+        # Convert JSON to CSV
+        num_transactions = convert_json_to_csv(json_path, csv_output_path)
+
+        print(f"✓ Conversion successful!")
+        print(f"✓ Converted {num_transactions} transactions")
+        print(f"\n📁 Output CSV location:")
+        print(f"   {csv_absolute_path}")
+
+        # Display preview
+        display_csv_preview(csv_output_path)
+
+        # Ask for confirmation
+        if not get_user_confirmation("Does the CSV look correct? Continue with tax calculation?"):
+            print("\nOperation cancelled by user.")
+            print(f"\n📁 The converted CSV has been saved at:")
+            print(f"   {csv_absolute_path}")
+            print("\nYou can review it and run the tax calculator manually if needed:")
+            print(f"   rye run python src/scalable_capital/main.py <config.json> {csv_output_path}")
+            sys.exit(0)
+
+        return csv_output_path
+
+    except Exception as e:
+        print(f"\n✗ Error converting JSON to CSV: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 def main():
     """Main entry point for the tax calculator."""
     if len(sys.argv) < 3 or len(sys.argv) > 4:
-        print("Usage: python main.py <config_file> <transactions_csv> [excel_output]")
+        print("Usage: python main.py <config_file> <transactions_file> [excel_output]")
+        print("\n  transactions_file: Can be either CSV or JSON format")
+        print("    - CSV: Direct Scalable Capital export")
+        print("    - JSON: API response from Scalable Capital")
         print("  excel_output: Optional path for Excel report output")
         sys.exit(1)
 
     configs_path = sys.argv[1]
-    csv_path = sys.argv[2]
+    transactions_file = sys.argv[2]
     excel_path = sys.argv[3] if len(sys.argv) == 4 else None
 
-    # Validate input files
+    # Validate config file
     if not os.path.isfile(configs_path):
         print("Error: Invalid config file path.")
         sys.exit(1)
-    if not os.path.isfile(csv_path):
-        print("Error: Invalid CSV file path.")
+
+    # Validate transactions file
+    if not os.path.isfile(transactions_file):
+        print("Error: Invalid transactions file path.")
         sys.exit(1)
+
+    # Detect file type and handle JSON conversion if needed
+    if is_json_file(transactions_file):
+        csv_path = handle_json_conversion(transactions_file)
+        print("\n✓ Proceeding with tax calculation...\n")
+    else:
+        csv_path = transactions_file
 
     # Load configurations
     configs = load_configs(configs_path)
