@@ -4,7 +4,7 @@ This guide explains how to use the JSON import feature to process transactions d
 
 ## Getting Your Transaction Data (JSON)
 
-### From Scalable Capital API
+### Method 1: Browser (Simple - Recommended for Most Users)
 
 1. **Log in to Scalable Capital** in your web browser
 2. **Navigate to the API endpoint**: `https://de.scalable.capital/broker/api/data`
@@ -20,6 +20,61 @@ This guide explains how to use the JSON import feature to process transactions d
 **That's it!** No need to modify or format the JSON - just copy and paste as-is.
 
 > **Note**: You must be logged in to your Scalable Capital account to access this API endpoint. If you're not logged in, the page will redirect you to the login page.
+
+### Method 2: curl (Advanced - Get More Transactions Per Request)
+
+If you have many transactions, you can use `curl` to fetch more transactions in a single request by customizing the page size:
+
+**Step 1: Get Your Session Cookie**
+1. Log in to Scalable Capital in your browser
+2. Open Developer Tools (F12 or right-click → Inspect)
+3. Go to the Network tab
+4. Refresh the page
+5. Find any request to `scalable.capital`
+6. Copy the `Cookie` header value
+
+**Step 2: Make the API Request**
+```bash
+curl 'https://de.scalable.capital/broker/api/data' \
+  -H 'Cookie: YOUR_SESSION_COOKIE_HERE' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{
+    "id": "transactions",
+    "input": {
+      "pageSize": 500,
+      "type": [],
+      "status": [],
+      "searchTerm": "",
+      "cursor": null
+    }
+  }' > transactions.json
+```
+
+**Customization Options:**
+- `pageSize`: Number of transactions per request (default: 50, increase to 500+ for more data)
+- `type`: Filter by transaction type (leave empty `[]` for all types)
+- `status`: Filter by status (leave empty `[]` for all statuses)
+- `searchTerm`: Search for specific ISIN or text (leave empty `""` for all)
+- `cursor`: For pagination - use `null` for first page
+
+**Example: Fetch 1000 Transactions**
+```bash
+curl 'https://de.scalable.capital/broker/api/data' \
+  -H 'Cookie: YOUR_SESSION_COOKIE' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{
+    "id": "transactions",
+    "input": {
+      "pageSize": 1000,
+      "type": [],
+      "status": [],
+      "searchTerm": "",
+      "cursor": null
+    }
+  }' > transactions.json
+```
+
+> **Security Note**: Your session cookie is sensitive. Don't share it with anyone and delete it from your command history after use.
 
 ## Quick Start
 

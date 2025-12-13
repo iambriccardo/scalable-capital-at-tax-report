@@ -43,10 +43,32 @@ Before using this tool, you'll need to gather:
      - Save as CSV file containing all your transactions
 
    - **Option 2: JSON from API** (Direct API response)
+
+     **Method A: Browser (Simple)**
      - Navigate to: `https://de.scalable.capital/broker/api/data`
      - Copy the entire JSON response (Ctrl+A, Ctrl+C)
      - Save it to a `.json` file
-     - The tool will automatically convert it to CSV format
+
+     **Method B: curl (Advanced - Get More Transactions)**
+     - Use curl to fetch data with custom page size:
+       ```bash
+       curl 'https://de.scalable.capital/broker/api/data' \
+         -H 'Cookie: YOUR_SESSION_COOKIE' \
+         -H 'Content-Type: application/json' \
+         --data-raw '{
+           "id": "transactions",
+           "input": {
+             "pageSize": 500,
+             "type": [],
+             "status": [],
+             "searchTerm": "",
+             "cursor": null
+           }
+         }' > transactions.json
+       ```
+     - Adjust `pageSize` to fetch more transactions (default: 50, max: depends on broker)
+     - You can get your session cookie from browser DevTools (Network tab)
+     - The tool will automatically convert the JSON to CSV format
 
 2. **OeKB Report Data** (for accumulating ETFs only)
    - Visit [OeKB website](https://my.oekb.at/kapitalmaerkte-services/kms-output/fonds-info/sd/af/f)
