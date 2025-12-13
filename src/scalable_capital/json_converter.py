@@ -78,13 +78,14 @@ def map_status(status: str) -> str:
     return mapping.get(status, status)
 
 
-def format_decimal(value: float, precision: int = None) -> str:
+def format_decimal(value: float, precision: int = None, strip_zeros: bool = False) -> str:
     """
     Format a number to European decimal format (comma as decimal separator).
 
     Args:
         value: Number to format
         precision: Number of decimal places (None = automatic)
+        strip_zeros: If True, remove trailing zeros after formatting
 
     Returns:
         Formatted string with comma as decimal separator
@@ -97,6 +98,9 @@ def format_decimal(value: float, precision: int = None) -> str:
         formatted = f'{value:.10f}'.rstrip('0').rstrip('.')
     else:
         formatted = f'{value:.{precision}f}'
+        if strip_zeros:
+            # Remove trailing zeros after rounding to precision
+            formatted = formatted.rstrip('0').rstrip('.')
 
     # Replace dot with comma for European format
     return formatted.replace('.', ',')
@@ -151,7 +155,7 @@ def convert_security_transaction(tx: Dict[str, Any]) -> Dict[str, str]:
         'type': csv_type,
         'isin': tx['isin'],
         'shares': format_decimal(quantity),
-        'price': format_decimal(price, precision=2),
+        'price': format_decimal(price, precision=3, strip_zeros=True),  # Round to 3 decimals, remove trailing zeros
         'amount': format_decimal(gross_amount),
         'fee': format_decimal(fee, precision=2),
         'tax': '0,00',
