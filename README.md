@@ -177,6 +177,16 @@ Create a JSON configuration file (e.g., `config.json`) with your securities deta
    - Ask for your confirmation before proceeding
    - Save the CSV as `transactions_converted.csv` for future use
 
+   > **⚠️ IMPORTANT - Fee Handling:** The Scalable Capital API does NOT provide transaction fees separately.
+   > The `amount` field includes fees already:
+   > - **BUY**: amount = -(share value + fees). Example: 150 EUR shares + 1 EUR fee → amount = -151
+   > - **SELL**: amount = share value - fees. Example: 180 EUR proceeds - 1 EUR fee → amount = 179
+   >
+   > **For accurate tax calculations**, manually add a `"fee"` field to transactions that have fees in the JSON.
+   > See [JSON_USAGE_GUIDE.md](JSON_USAGE_GUIDE.md#️-important-fee-handling) for detailed instructions.
+   >
+   > The converter will highlight transactions with fees during the preview with ⚠️ markers.
+
    **Generate Excel report:**
    ```bash
    rye run python src/scalable_capital/main.py path/to/config.json path/to/transactions.csv output.xlsx

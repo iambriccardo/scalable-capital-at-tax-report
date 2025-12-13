@@ -178,6 +178,51 @@ When you navigate to `https://de.scalable.capital/broker/api/data`, you'll see r
 
 This is exactly what you should copy and save!
 
+## ⚠️ IMPORTANT: Fee Handling
+
+**The Scalable Capital API does NOT provide fee information separately.** The `amount` field in the JSON includes fees:
+
+- **For BUY transactions**: `amount` = -(share value + fees)
+  - Example: Buy shares worth 150 EUR with 1 EUR fee → JSON shows `amount: -151`
+
+- **For SELL transactions**: `amount` = share value - fees
+  - Example: Sell shares worth 180 EUR with 1 EUR fee → JSON shows `amount: 179`
+
+### Why This Matters for Tax Calculations
+
+Austrian tax law requires calculating capital gains based on the **gross transaction amounts** (before fees). If you use the JSON amounts directly without accounting for fees, your tax calculations will be **slightly incorrect**.
+
+### Solution: Manually Add Fee Information
+
+You can manually add a `"fee"` field to each transaction in the JSON to get accurate tax calculations:
+
+```json
+{
+    "id": "abc123",
+    "type": "SECURITY_TRANSACTION",
+    "status": "SETTLED",
+    "lastEventDateTime": "2024-05-16T14:56:37.206Z",
+    "description": "Alphabet A",
+    "securityTransactionType": "SINGLE",
+    "quantity": 1,
+    "amount": 159.75,
+    "fee": 0.99,          ← Add this field manually
+    "side": "SELL",
+    "isin": "US02079K3059",
+    "currency": "EUR"
+}
+```
+
+**How to find fees:**
+1. Compare the JSON `amount` with your broker's transaction confirmation
+2. The difference is the fee
+3. Add the `"fee"` field with the fee amount (as a number, not a string)
+
+**The converter will:**
+- Calculate gross amount: `gross_amount = amount + fee`
+- Display transactions with fees prominently in the preview with ⚠️ markers
+- Show a detailed fee summary before you confirm the conversion
+
 ## JSON Format Expected
 
 The tool expects JSON in the following structure (from Scalable Capital API `https://de.scalable.capital/broker/api/data`):
@@ -199,6 +244,7 @@ The tool expects JSON in the following structure (from Scalable Capital API `htt
                                 "securityTransactionType": "SAVINGS_PLAN",
                                 "quantity": 6.234,
                                 "amount": -799.9469,
+                                "fee": 0.0,    // ← Optional: add manually if fees exist
                                 "side": "BUY",
                                 "isin": "IE00BK5BQT80",
                                 "currency": "EUR"
@@ -318,7 +364,75 @@ rye run python src/scalable_capital/main.py config.json data.json tax_report_202
 # - Saves data_converted.csv
 ```
 
-### Example 3: Canceling After Preview
+### Example 3: Adding Fees to JSON for Accurate Tax Calculations
+
+**Scenario**: You sold Alphabet stock and your broker confirmation shows:
+- Sale proceeds: 180.00 EUR
+- Transaction fee: 0.99 EUR
+- Net received: 179.01 EUR
+
+**Step 1: Check the JSON**
+```json
+{
+    "id": "abc123",
+    "type": "SECURITY_TRANSACTION",
+    "status": "SETTLED",
+    "lastEventDateTime": "2024-05-16T14:56:37.206Z",
+    "description": "Alphabet A",
+    "securityTransactionType": "SINGLE",
+    "quantity": 1,
+    "amount": 179.01,    ← This is NET (after fees)
+    "side": "SELL",
+    "isin": "US02079K3059",
+    "currency": "EUR"
+}
+```
+
+**Step 2: Add the fee field**
+```json
+{
+    "id": "abc123",
+    "type": "SECURITY_TRANSACTION",
+    "status": "SETTLED",
+    "lastEventDateTime": "2024-05-16T14:56:37.206Z",
+    "description": "Alphabet A",
+    "securityTransactionType": "SINGLE",
+    "quantity": 1,
+    "amount": 179.01,
+    "fee": 0.99,         ← Add this manually
+    "side": "SELL",
+    "isin": "US02079K3059",
+    "currency": "EUR"
+}
+```
+
+**Step 3: Run the converter**
+```bash
+$ rye run python src/scalable_capital/main.py config.json transactions.json
+```
+
+**Step 4: Review the preview**
+```
+CSV PREVIEW (all rows):
+============================================================================
+date         | type       | description  | amount       | fee          | ...
+2024-05-16   | Sell       | Alphabet A   | 180,00       | 0,99         | ... ⚠️ FEE
+----------------------------------------------------------------------------
+
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+TRANSACTIONS WITH FEES:
+----------------------------------------------------------------------------
+  2024-05-16 | Sell       | Alphabet A                               | Amount:       180,00 | Fee:     0,99
+----------------------------------------------------------------------------
+Total transactions with fees: 1
+
+Note: Amounts shown are GROSS (before fees). Fees are listed separately for tax purposes.
+⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+```
+
+**Result**: The CSV now correctly shows gross amount (180.00) and fee (0.99) separately, ensuring accurate capital gains calculation!
+
+### Example 4: Canceling After Preview
 
 ```
 $ rye run python src/scalable_capital/main.py config.json transactions.json

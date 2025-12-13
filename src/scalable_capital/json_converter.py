@@ -106,6 +106,11 @@ def convert_security_transaction(tx: Dict[str, Any]) -> Dict[str, str]:
     """
     Convert a security transaction from JSON to CSV row format.
 
+    IMPORTANT: Scalable Capital API returns NET amounts (after fees are deducted).
+    To get accurate tax calculations, you can manually add a "fee" field to each
+    transaction in the JSON. The converter will adjust amounts accordingly:
+    - For BUY/SELL: gross_amount = net_amount + fee
+
     Args:
         tx: Transaction dictionary from JSON
 
@@ -114,10 +119,20 @@ def convert_security_transaction(tx: Dict[str, Any]) -> Dict[str, str]:
     """
     date, time = parse_datetime(tx['lastEventDateTime'])
 
-    # Calculate price per share: amount / quantity
     quantity = tx['quantity']
-    amount = tx['amount']
-    price = abs(amount / quantity) if quantity != 0 else 0
+    net_amount = tx['amount']  # Amount from API is NET (after fees)
+
+    # Check if user manually added a fee field
+    fee = tx.get('fee', 0.0)
+
+    # Calculate gross amount (amount before fees)
+    # For both BUY and SELL: gross_amount = net_amount + fee
+    # - For SELL: you receive (gross - fee), so gross = net + fee
+    # - For BUY: you pay -(gross + fee), so gross = net + fee
+    gross_amount = net_amount + fee
+
+    # Calculate price per share using gross amount
+    price = abs(gross_amount / quantity) if quantity != 0 else 0
 
     # Determine if it's a buy or sell based on side
     side = tx.get('side', 'BUY')
@@ -137,8 +152,8 @@ def convert_security_transaction(tx: Dict[str, Any]) -> Dict[str, str]:
         'isin': tx['isin'],
         'shares': format_decimal(quantity),
         'price': format_decimal(price, precision=2),
-        'amount': format_decimal(amount),
-        'fee': '0,00',
+        'amount': format_decimal(gross_amount),
+        'fee': format_decimal(fee, precision=2),
         'tax': '0,00',
         'currency': tx['currency']
     }

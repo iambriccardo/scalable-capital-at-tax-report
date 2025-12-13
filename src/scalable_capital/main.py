@@ -36,7 +36,7 @@ def is_json_file(file_path: str) -> bool:
 
 
 def display_csv_preview(csv_path: str, max_rows: int = None):
-    """Display a preview of the CSV file."""
+    """Display a preview of the CSV file with fee information highlighted."""
     print("\n" + "=" * 140)
     if max_rows:
         print("CSV PREVIEW (first {} rows):".format(max_rows))
@@ -54,6 +54,22 @@ def display_csv_preview(csv_path: str, max_rows: int = None):
             print("(empty file)")
             return
 
+        # Check for transactions with fees
+        transactions_with_fees = []
+        for row in rows:
+            fee_value = row.get('fee', '0,00').replace(',', '.')
+            try:
+                if float(fee_value) > 0:
+                    transactions_with_fees.append({
+                        'date': row.get('date', 'N/A'),
+                        'description': row.get('description', 'N/A'),
+                        'amount': row.get('amount', 'N/A'),
+                        'fee': row.get('fee', 'N/A'),
+                        'type': row.get('type', 'N/A')
+                    })
+            except ValueError:
+                pass
+
         # Print header
         headers = list(rows[0].keys())
         header_line = " | ".join(f"{h[:12]:12}" for h in headers)
@@ -64,12 +80,47 @@ def display_csv_preview(csv_path: str, max_rows: int = None):
         rows_to_display = rows[:max_rows] if max_rows else rows
         for i, row in enumerate(rows_to_display):
             values = [str(row[h])[:12] for h in headers]
-            print(" | ".join(f"{v:12}" for v in values))
+            line = " | ".join(f"{v:12}" for v in values)
+            print(line)
 
         if max_rows and len(rows) > max_rows:
             print(f"\n... and {len(rows) - max_rows} more rows")
 
         print(f"\nTotal transactions: {len(rows)}")
+
+        # Display fee summary if any fees exist
+        if transactions_with_fees:
+            print("\n" + "=" * 140)
+            print("TRANSACTIONS WITH FEES - AMOUNT CALCULATION")
+            print("=" * 140)
+            print("\nThe following transactions had fees that were adjusted:")
+            print("-" * 140)
+            print(f"{'Date':<12} {'Type':<10} {'Description':<40} {'JSON Amount':>15} {'Fee':>10} {'CSV Amount':>15}")
+            print("-" * 140)
+            for tx in transactions_with_fees:
+                # Parse the amounts to show calculation
+                csv_amount_str = tx['amount']
+                fee_str = tx['fee']
+
+                # Convert to float for calculation display
+                try:
+                    csv_amount = float(csv_amount_str.replace(',', '.'))
+                    fee = float(fee_str.replace(',', '.'))
+                    json_amount = csv_amount - fee
+                    json_amount_str = f"{json_amount:.2f}".replace('.', ',')
+                except:
+                    json_amount_str = "N/A"
+
+                print(f"{tx['date']:<12} {tx['type']:<10} {tx['description'][:40]:<40} {json_amount_str:>15} {fee_str:>10} {csv_amount_str:>15}")
+
+            print("-" * 140)
+            print(f"\nTotal transactions with fees: {len(transactions_with_fees)}")
+            print("\nCalculation: CSV Amount = JSON Amount + Fee")
+            print("  - For BUY:  JSON amount includes the fee (you paid share_value + fee)")
+            print("  - For SELL: JSON amount excludes the fee (you received proceeds - fee)")
+            print("  - CSV shows the gross amount (share value for tax purposes) and fee separately")
+            print("=" * 140)
+
     print("=" * 140)
 
 
