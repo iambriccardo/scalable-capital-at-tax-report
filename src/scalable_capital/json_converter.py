@@ -35,6 +35,7 @@ def map_security_transaction_type(sec_type: str) -> str:
     mapping = {
         'SAVINGS_PLAN': 'Savings plan',
         'BUY': 'Buy',
+        'SINGLE': 'Buy',  # Single buy order (one-time purchase)
         'SELL': 'Sell'
     }
     return mapping.get(sec_type, sec_type)
@@ -222,8 +223,11 @@ def convert_json_to_csv(json_file_path: str, csv_output_path: str) -> int:
     """
     Convert Scalable Capital JSON transaction data to CSV format.
 
-    Only includes executed security transactions (buy/sell/savings plans).
-    Excludes cash transactions (deposits, withdrawals, fees, interest).
+    Only includes SETTLED (executed) security transactions (buy/sell/savings plans).
+    Excludes:
+    - Cash transactions (deposits, withdrawals, fees, interest)
+    - Non-trade security transactions (transfers, splits, corporate actions)
+    - Non-executed security transactions (cancelled, pending orders)
 
     Args:
         json_file_path: Path to input JSON file
@@ -245,14 +249,20 @@ def convert_json_to_csv(json_file_path: str, csv_output_path: str) -> int:
 
     for tx in transactions:
         tx_type = tx['type']
+        tx_status = tx.get('status', '')
 
-        # Only process security transactions (skip cash transactions)
-        if tx_type == 'SECURITY_TRANSACTION':
+        # Only process SECURITY_TRANSACTION types that are SETTLED (executed)
+        if tx_type == 'SECURITY_TRANSACTION' and tx_status == 'SETTLED':
             csv_row = convert_security_transaction(tx)
             csv_rows.append(csv_row)
+        elif tx_type == 'SECURITY_TRANSACTION' and tx_status != 'SETTLED':
+            # Skip non-executed security transactions (cancelled, pending, etc.)
+            skipped_count += 1
+            continue
         elif tx_type == 'NON_TRADE_SECURITY_TRANSACTION':
-            csv_row = convert_non_trade_security_transaction(tx)
-            csv_rows.append(csv_row)
+            # Skip non-trade security transactions (transfers, etc.)
+            skipped_count += 1
+            continue
         elif tx_type == 'CASH_TRANSACTION':
             # Skip cash transactions (deposits, withdrawals, fees, interest)
             skipped_count += 1
@@ -276,6 +286,6 @@ def convert_json_to_csv(json_file_path: str, csv_output_path: str) -> int:
 
     # Print summary
     if skipped_count > 0:
-        print(f"  (Skipped {skipped_count} cash transactions - only security transactions are included)")
+        print(f"  (Skipped {skipped_count} non-execution transactions - only buy/sell executions are included)")
 
     return len(csv_rows)

@@ -38,7 +38,7 @@ rye run python src/scalable_capital/main.py config.json transactions.json
 - **Direct API Access**: Copy transactions directly from Scalable Capital API responses
 - **No Manual Export**: Skip the CSV export step from the web interface
 - **Automatic Conversion**: The tool handles the conversion to CSV format
-- **Smart Filtering**: Automatically excludes cash transactions (deposits, fees, etc.) - only includes security trades
+- **Smart Filtering**: Automatically excludes cash transactions and non-trade transactions - only includes buy/sell executions
 - **Verification**: Preview the converted data before processing
 - **Reusability**: Converted CSV is saved for future use
 
@@ -70,7 +70,7 @@ rye run python src/scalable_capital/main.py config.json transactions.json
 
 4. **Conversion & Preview**
    ```
-   (Skipped 34 cash transactions - only security transactions are included)
+   (Skipped 34 non-execution transactions - only buy/sell executions are included)
    ✓ Conversion successful!
    ✓ Converted 16 transactions
 
@@ -159,24 +159,36 @@ The tool expects JSON in the following structure (from Scalable Capital API `htt
 
 ## Supported Transaction Types
 
-The converter **only includes security transactions** that are relevant for tax calculations:
+The converter **only includes SETTLED (executed) buy/sell transactions** that are relevant for tax calculations:
 
-### Included: Security Transactions
-- **Savings Plans** → `Savings plan`
-- **Buy Orders** → `Buy`
-- **Sell Orders** → `Sell`
+### Included: Executed Security Transactions
+**Requirements**: Must be `SECURITY_TRANSACTION` type AND `SETTLED` status
 
-### Included: Non-Trade Security Transactions
-- **Transfer In** → `Buy`
-- **Transfer Out** → `Sell`
+- ✅ **Savings Plans** (recurring purchases) → `Savings plan`
+- ✅ **Buy Orders** (manual purchases) → `Buy`
+- ✅ **Single Orders** (one-time purchases) → `Buy`
+- ✅ **Sell Orders** (executed sales) → `Sell`
 
-### Excluded: Cash Transactions (Not Needed for Tax Calculation)
-- ❌ **Deposits** - Skipped
-- ❌ **Withdrawals** - Skipped
-- ❌ **Fees** - Skipped
-- ❌ **Interest** - Skipped
+### Excluded: Non-Execution Transactions
 
-> **Note**: Cash transactions are automatically filtered out because they're not needed for calculating capital gains or distribution equivalent income. The tool will inform you how many cash transactions were skipped during conversion.
+**Transaction Type: `CASH_TRANSACTION`** (all statuses)
+- ❌ **Cash Deposits** (e.g., bank transfers to your account) - Skipped
+- ❌ **Cash Withdrawals** (e.g., bank transfers from your account) - Skipped
+- ❌ **Fees** (e.g., account maintenance fees) - Skipped
+- ❌ **Interest** (e.g., interest on cash balance) - Skipped
+
+**Transaction Type: `NON_TRADE_SECURITY_TRANSACTION`** (all statuses)
+- ❌ **Security Transfers In** (e.g., depot transfers from another broker) - Skipped
+- ❌ **Security Transfers Out** (e.g., depot transfers to another broker) - Skipped
+- ❌ **Stock Splits** - Skipped
+- ❌ **Corporate Actions** - Skipped
+
+**Transaction Type: `SECURITY_TRANSACTION`** with non-SETTLED status
+- ❌ **Cancelled Orders** (status: `CANCELED` or `CANCELLED`) - Skipped
+- ❌ **Pending Orders** (status: `PENDING`) - Skipped
+- ❌ **Failed Orders** (any non-SETTLED status) - Skipped
+
+> **Note**: Only executed buy/sell transactions (type `SECURITY_TRANSACTION` AND status `SETTLED`) are included. All other transactions are automatically filtered out because they're not needed for calculating capital gains or distribution equivalent income. The tool will inform you how many transactions were skipped during conversion.
 
 ## Field Mapping
 

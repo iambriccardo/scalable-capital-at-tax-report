@@ -148,7 +148,8 @@ Create a JSON configuration file (e.g., `config.json`) with your securities deta
 
    When using JSON:
    - The tool will automatically detect it's a JSON file
-   - Convert it to CSV format (only security transactions, excludes cash)
+   - Convert it to CSV format (only buy/sell executions are included)
+   - **Excludes**: Cash deposits, withdrawals, fees, interest, and security transfers
    - Display the full path to the generated CSV file
    - Show you a preview of the converted data
    - Ask for your confirmation before proceeding
@@ -260,7 +261,7 @@ The tool will:
 
    Input JSON file: /full/path/to/transactions.json
    Converting to CSV format...
-   (Skipped 34 cash transactions - only security transactions are included)
+   (Skipped 34 non-execution transactions - only buy/sell executions are included)
    ✓ Conversion successful!
    ✓ Converted 16 transactions
 
