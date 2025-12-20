@@ -138,9 +138,9 @@ rye run python src/scalable_capital/main.py config.json transactions.json
    Reading from: /full/path/to/my_transactions_converted.csv
    ----------------------------------------------------------------------------
    date         | time     | status   | type         | isin         | shares
-   2025-03-10   | 10:33:23 | Executed | Savings plan | IE00BK5BQT80 | 6,234
-   2025-02-10   | 10:08:59 | Executed | Savings plan | IE00BK5BQT80 | 5,837
-   2025-01-10   | 10:07:15 | Executed | Savings plan | IE00BK5BQT80 | 5,99
+   2025-03-10   | 10:33:23 | Executed | Savings plan | IE00B4L5Y983 | 5,123
+   2025-02-10   | 10:08:59 | Executed | Savings plan | IE00B4L5Y983 | 4,876
+   2025-01-10   | 10:07:15 | Executed | Savings plan | IE00B4L5Y983 | 5,234
    ... (all 16 rows shown)
 
    Total transactions: 16
@@ -202,13 +202,13 @@ You can manually add a `"fee"` field to each transaction in the JSON to get accu
     "type": "SECURITY_TRANSACTION",
     "status": "SETTLED",
     "lastEventDateTime": "2024-05-16T14:56:37.206Z",
-    "description": "Alphabet A",
+    "description": "Example Stock",
     "securityTransactionType": "SINGLE",
-    "quantity": 1,
-    "amount": 159.75,
-    "fee": 0.99,          ← Add this field manually
+    "quantity": 10,
+    "amount": 1234.56,
+    "fee": 1.50,          ← Add this field manually
     "side": "SELL",
-    "isin": "US02079K3059",
+    "isin": "US0378331005",  // Example: Apple Inc.
     "currency": "EUR"
 }
 ```
@@ -240,13 +240,13 @@ The tool expects JSON in the following structure (from Scalable Capital API `htt
                                 "type": "SECURITY_TRANSACTION",
                                 "status": "SETTLED",
                                 "lastEventDateTime": "2025-03-10T10:33:23.220Z",
-                                "description": "Vanguard FTSE All-World (Acc)",
+                                "description": "Example ETF",
                                 "securityTransactionType": "SAVINGS_PLAN",
-                                "quantity": 6.234,
-                                "amount": -799.9469,
+                                "quantity": 4.567,
+                                "amount": -500.00,
                                 "fee": 0.0,    // ← Optional: add manually if fees exist
                                 "side": "BUY",
-                                "isin": "IE00BK5BQT80",
+                                "isin": "IE00B4L5Y983",
                                 "currency": "EUR"
                             }
                         ]
@@ -378,12 +378,12 @@ rye run python src/scalable_capital/main.py config.json data.json tax_report_202
     "type": "SECURITY_TRANSACTION",
     "status": "SETTLED",
     "lastEventDateTime": "2024-05-16T14:56:37.206Z",
-    "description": "Alphabet A",
+    "description": "Example Stock",
     "securityTransactionType": "SINGLE",
-    "quantity": 1,
-    "amount": 179.01,    ← This is NET (after fees)
+    "quantity": 10,
+    "amount": 1498.50,    ← This is NET (after fees)
     "side": "SELL",
-    "isin": "US02079K3059",
+    "isin": "US0378331005",
     "currency": "EUR"
 }
 ```
@@ -395,13 +395,13 @@ rye run python src/scalable_capital/main.py config.json data.json tax_report_202
     "type": "SECURITY_TRANSACTION",
     "status": "SETTLED",
     "lastEventDateTime": "2024-05-16T14:56:37.206Z",
-    "description": "Alphabet A",
+    "description": "Example Stock",
     "securityTransactionType": "SINGLE",
-    "quantity": 1,
-    "amount": 179.01,
-    "fee": 0.99,         ← Add this manually
+    "quantity": 10,
+    "amount": 1498.50,
+    "fee": 1.50,         ← Add this manually
     "side": "SELL",
-    "isin": "US02079K3059",
+    "isin": "US0378331005",
     "currency": "EUR"
 }
 ```
