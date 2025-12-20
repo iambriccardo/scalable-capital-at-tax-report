@@ -13,22 +13,46 @@ from scalable_capital.models import Config
 from scalable_capital.tax_calculator import TaxCalculator
 from scalable_capital.terminal_report import generate_terminal_report
 from scalable_capital.json_converter import convert_json_to_csv
+from scalable_capital.constants import DEFAULT_FILE_ENCODING, CSV_DELIMITER, CSV_PREVIEW_LINES
+from scalable_capital.exceptions import ConfigurationError, FileConversionError
 
 
 def load_configs(config_path: str) -> List[Config]:
-    """Load and parse fund configurations from JSON file."""
-    with open(config_path, 'r') as f:
-        config_data = json.load(f)
-        return [Config.from_dict(c) for c in config_data]
+    """
+    Load and parse fund configurations from JSON file.
+
+    Args:
+        config_path: Path to the JSON configuration file
+
+    Returns:
+        List of Config objects
+
+    Raises:
+        ConfigurationError: If the configuration file is invalid
+    """
+    try:
+        with open(config_path, 'r', encoding=DEFAULT_FILE_ENCODING) as f:
+            config_data = json.load(f)
+            return [Config.from_dict(c) for c in config_data]
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        raise ConfigurationError(f"Invalid configuration file: {str(e)}") from e
 
 
 def is_json_file(file_path: str) -> bool:
-    """Check if a file is a JSON file based on extension and content."""
+    """
+    Check if a file is a JSON file based on extension and content.
+
+    Args:
+        file_path: Path to the file to check
+
+    Returns:
+        True if file is JSON format, False otherwise
+    """
     if file_path.lower().endswith('.json'):
         return True
     # Also try to detect by parsing
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding=DEFAULT_FILE_ENCODING) as f:
             json.load(f)
         return True
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -36,7 +60,13 @@ def is_json_file(file_path: str) -> bool:
 
 
 def display_csv_preview(csv_path: str, max_rows: int = None):
-    """Display a preview of the CSV file with fee information highlighted."""
+    """
+    Display a preview of the CSV file with fee information highlighted.
+
+    Args:
+        csv_path: Path to the CSV file
+        max_rows: Maximum number of rows to display (None for all rows)
+    """
     print("\n" + "=" * 140)
     if max_rows:
         print("CSV PREVIEW (first {} rows):".format(max_rows))
@@ -46,8 +76,8 @@ def display_csv_preview(csv_path: str, max_rows: int = None):
     print(f"Reading from: {os.path.abspath(csv_path)}")
     print("-" * 140)
 
-    with open(csv_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f, delimiter=';')
+    with open(csv_path, 'r', encoding=DEFAULT_FILE_ENCODING) as f:
+        reader = csv.DictReader(f, delimiter=CSV_DELIMITER)
         rows = list(reader)
 
         if not rows:
@@ -125,7 +155,15 @@ def display_csv_preview(csv_path: str, max_rows: int = None):
 
 
 def get_user_confirmation(prompt: str = "Do you want to continue?") -> bool:
-    """Ask user for confirmation."""
+    """
+    Ask user for confirmation with yes/no response.
+
+    Args:
+        prompt: The question to ask the user
+
+    Returns:
+        True if user confirms, False otherwise
+    """
     while True:
         response = input(f"\n{prompt} (yes/no): ").strip().lower()
         if response in ['yes', 'y']:
@@ -184,14 +222,18 @@ def handle_json_conversion(json_path: str) -> str:
         return csv_output_path
 
     except Exception as e:
-        print(f"\n✗ Error converting JSON to CSV: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+        raise FileConversionError(f"Error converting JSON to CSV: {str(e)}") from e
 
 
 def main():
-    """Main entry point for the tax calculator."""
+    """
+    Main entry point for the tax calculator.
+
+    Processes command-line arguments, converts JSON to CSV if needed,
+    calculates taxes, and generates reports.
+
+    Exits with status 1 on error.
+    """
     if len(sys.argv) < 3 or len(sys.argv) > 4:
         print("Usage: python main.py <config_file> <transactions_file> [excel_output]")
         print("\n  transactions_file: Can be either CSV or JSON format")
@@ -206,39 +248,45 @@ def main():
 
     # Validate config file
     if not os.path.isfile(configs_path):
-        print("Error: Invalid config file path.")
+        print(f"Error: Config file not found: {configs_path}")
         sys.exit(1)
 
     # Validate transactions file
     if not os.path.isfile(transactions_file):
-        print("Error: Invalid transactions file path.")
+        print(f"Error: Transactions file not found: {transactions_file}")
         sys.exit(1)
 
-    # Detect file type and handle JSON conversion if needed
-    if is_json_file(transactions_file):
-        csv_path = handle_json_conversion(transactions_file)
-        print("\n✓ Proceeding with tax calculation...\n")
-    else:
-        csv_path = transactions_file
+    try:
+        # Detect file type and handle JSON conversion if needed
+        if is_json_file(transactions_file):
+            csv_path = handle_json_conversion(transactions_file)
+            print("\n✓ Proceeding with tax calculation...\n")
+        else:
+            csv_path = transactions_file
 
-    # Load configurations
-    configs = load_configs(configs_path)
+        # Load configurations
+        configs = load_configs(configs_path)
 
-    # Initialize and run calculator
-    calculator = TaxCalculator(configs, csv_path)
-    tax_results = calculator.calculate_taxes()
+        # Initialize and run calculator
+        calculator = TaxCalculator(configs, csv_path)
+        tax_results = calculator.calculate_taxes()
 
-    # Generate terminal report
-    generate_terminal_report(tax_results, csv_path)
+        # Generate terminal report
+        generate_terminal_report(tax_results, csv_path)
 
-    # Generate Excel report if requested
-    if excel_path:
-        try:
+        # Generate Excel report if requested
+        if excel_path:
             generate_excel_report(tax_results, excel_path)
             print(f"\nExcel report generated successfully: {excel_path}")
-        except Exception as e:
-            print(f"\nError generating Excel report: {str(e)}")
-            sys.exit(1)
+
+    except (ConfigurationError, FileConversionError) as e:
+        print(f"\nError: {str(e)}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\nUnexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == '__main__':

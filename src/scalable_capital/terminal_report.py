@@ -7,6 +7,7 @@ from typing import List
 
 from scalable_capital.models import Config, TaxCalculationResult, AdjustmentTransaction, ComputedTransaction, \
     BuyTransaction, SellTransaction, SecurityType
+from scalable_capital.constants import AUSTRIAN_CAPITAL_GAINS_TAX_RATE
 
 
 class TerminalReportGenerator:
@@ -14,7 +15,14 @@ class TerminalReportGenerator:
 
     @staticmethod
     def print_fund_details(config: Config, ecb_exchange_rate: float, csv_file_path: str) -> None:
-        """Print the details of a fund including OeKB factors and exchange rate."""
+        """
+        Print the details of a fund including OeKB factors and exchange rate.
+
+        Args:
+            config: Configuration for the fund
+            ecb_exchange_rate: ECB exchange rate for the OeKB report currency
+            csv_file_path: Path to the CSV file containing transaction data
+        """
         print("\n" + "=" * 80)
         print(f"{'DETAILS':^80}")
         print("=" * 80 + "\n")
@@ -36,7 +44,13 @@ class TerminalReportGenerator:
 
     @staticmethod
     def print_transactions(config: Config, computed_transactions: List[ComputedTransaction]) -> None:
-        """Print the transaction details including headers and computed values."""
+        """
+        Print the transaction details including headers and computed values.
+
+        Args:
+            config: Configuration for the fund
+            computed_transactions: List of computed transactions to display
+        """
         print("\n" + "=" * 90)
         print(f"{'TRANSACTIONS':^90}")
         print("=" * 90 + "\n")
@@ -67,7 +81,14 @@ class TerminalReportGenerator:
     @staticmethod
     def print_capital_gains(distribution_equivalent_income: float, taxes_paid_abroad: float,
                             total_capital_gains: float) -> None:
-        """Print the capital gains information."""
+        """
+        Print the capital gains information.
+
+        Args:
+            distribution_equivalent_income: Distribution equivalent income from OeKB
+            taxes_paid_abroad: Taxes paid abroad from OeKB
+            total_capital_gains: Total capital gains from sales
+        """
         print("\n" + "=" * 80)
         print(f"{'CAPITAL GAINS':^80}")
         print("=" * 80 + "\n")
@@ -82,7 +103,14 @@ class TerminalReportGenerator:
 
     @staticmethod
     def print_stats(config: Config, total_quantity_before_report: float, total_quantity: float) -> None:
-        """Print statistics about share quantities."""
+        """
+        Print statistics about share quantities.
+
+        Args:
+            config: Configuration for the fund
+            total_quantity_before_report: Total quantity before OeKB report date
+            total_quantity: Final total quantity
+        """
         print("\n" + "=" * 80)
         print(f"{'STATS':^80}")
         print("=" * 80 + "\n")
@@ -95,7 +123,14 @@ class TerminalReportGenerator:
 
     @staticmethod
     def print_final_summary(total_distribution_equivalent_income: float, total_taxes_paid_abroad: float, total_capital_gains: float) -> None:
-        """Print the final summary of all calculations."""
+        """
+        Print the final summary of all calculations across all securities.
+
+        Args:
+            total_distribution_equivalent_income: Sum of distribution equivalent income for all securities
+            total_taxes_paid_abroad: Sum of taxes paid abroad for all securities
+            total_capital_gains: Sum of capital gains for all securities
+        """
         print("\n" + "=" * 80)
         print(f"{'FINAL SUMMARY (ALL SECURITIES)':^80}")
         print("=" * 80 + "\n")
@@ -104,7 +139,7 @@ class TerminalReportGenerator:
         dei = round(total_distribution_equivalent_income, 2)
         tpa = round(total_taxes_paid_abroad, 2)
         cg = round(total_capital_gains, 2)
-        projected = round(((total_distribution_equivalent_income + total_capital_gains) * 0.275) - total_taxes_paid_abroad, 2)
+        projected = round(((total_distribution_equivalent_income + total_capital_gains) * AUSTRIAN_CAPITAL_GAINS_TAX_RATE) - total_taxes_paid_abroad, 2)
 
         print(f"{'Distribution equivalent income (936/937):':<50} {dei:>10.2f} EUR")
         print(f"{'Taxes paid abroad (984/998):':<50} {tpa:>10.2f} EUR")
@@ -114,49 +149,27 @@ class TerminalReportGenerator:
 
 
 def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_path: str) -> None:
-    """Generate terminal output for tax calculation results."""
+    """
+    Generate terminal output for tax calculation results.
+
+    Args:
+        tax_results: List of tax calculation results to display
+        csv_file_path: Path to the CSV file containing transaction data
+    """
     generator = TerminalReportGenerator()
     total_distribution_equivalent_income = 0
     total_taxes_paid_abroad = 0
     total_capital_gains = 0
 
     for result in tax_results:
+        # Convert result back to config for display purposes
+        config = result.to_config()
+
         # Print fund details
-        generator.print_fund_details(
-            Config(
-                start_date=result.start_date,
-                end_date=result.end_date,
-                oekb_report_date=result.report_date,
-                oekb_distribution_equivalent_income_factor=result.distribution_equivalent_income_factor,
-                oekb_taxes_paid_abroad_factor=result.taxes_paid_abroad_factor,
-                oekb_adjustment_factor=result.adjustment_factor,
-                oekb_report_currency=result.report_currency,
-                starting_quantity=result.starting_quantity,
-                starting_moving_avg_price=result.starting_moving_avg_price,
-                isin=result.isin,
-                security_type=result.security_type
-            ),
-            result.ecb_exchange_rate,
-            csv_file_path
-        )
+        generator.print_fund_details(config, result.ecb_exchange_rate, csv_file_path)
 
         # Print transactions
-        generator.print_transactions(
-            Config(
-                start_date=result.start_date,
-                end_date=result.end_date,
-                oekb_report_date=result.report_date,
-                oekb_distribution_equivalent_income_factor=result.distribution_equivalent_income_factor,
-                oekb_taxes_paid_abroad_factor=result.taxes_paid_abroad_factor,
-                oekb_adjustment_factor=result.adjustment_factor,
-                oekb_report_currency=result.report_currency,
-                starting_quantity=result.starting_quantity,
-                starting_moving_avg_price=result.starting_moving_avg_price,
-                isin=result.isin,
-                security_type=result.security_type
-            ),
-            result.computed_transactions
-        )
+        generator.print_transactions(config, result.computed_transactions)
 
         # Print capital gains
         generator.print_capital_gains(
@@ -166,23 +179,7 @@ def generate_terminal_report(tax_results: List[TaxCalculationResult], csv_file_p
         )
 
         # Print stats
-        generator.print_stats(
-            Config(
-                start_date=result.start_date,
-                end_date=result.end_date,
-                oekb_report_date=result.report_date,
-                oekb_distribution_equivalent_income_factor=result.distribution_equivalent_income_factor,
-                oekb_taxes_paid_abroad_factor=result.taxes_paid_abroad_factor,
-                oekb_adjustment_factor=result.adjustment_factor,
-                oekb_report_currency=result.report_currency,
-                starting_quantity=result.starting_quantity,
-                starting_moving_avg_price=result.starting_moving_avg_price,
-                isin=result.isin,
-                security_type=result.security_type
-            ),
-            result.total_quantity_before_report,
-            result.total_quantity
-        )
+        generator.print_stats(config, result.total_quantity_before_report, result.total_quantity)
 
         total_distribution_equivalent_income += result.distribution_equivalent_income
         total_taxes_paid_abroad += result.taxes_paid_abroad

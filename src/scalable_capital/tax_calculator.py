@@ -10,6 +10,7 @@ The calculator processes transactions for investment funds and calculates:
 """
 import csv
 from datetime import datetime
+from pathlib import Path
 from typing import List, Tuple
 
 from currency_converter import CurrencyConverter
@@ -32,7 +33,7 @@ class TaxCalculator:
     - Adjusting moving average prices
     """
 
-    def __init__(self, configs: List[Config], csv_file_path: str):
+    def __init__(self, configs: List[Config], csv_file_path: str | Path):
         """
         Initialize the tax calculator with fund configurations and transaction data.
 
@@ -41,20 +42,15 @@ class TaxCalculator:
             csv_file_path: Path to CSV file containing transaction data
         """
         self.configs = configs
-        self.csv_file_path = csv_file_path
+        self.csv_file_path = Path(csv_file_path)
         self.transactions = self._load_transactions()
 
     def _load_transactions(self) -> List[Transaction]:
-        """
-        Load and parse transactions from the CSV file.
-
-        Returns:
-            List of Transaction objects
-        """
+        """Load and parse transactions from the CSV file."""
         transactions = []
 
-        with open(self.csv_file_path, 'r') as file:
-            reader = csv.DictReader(file, delimiter=';')
+        with self.csv_file_path.open("r", encoding="utf-8") as file:
+            reader = csv.DictReader(file, delimiter=";")
             for row in reader:
                 transaction = Transaction.from_csv_row(row)
                 transactions.append(transaction)

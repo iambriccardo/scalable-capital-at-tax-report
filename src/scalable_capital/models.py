@@ -3,6 +3,10 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import List
+import re
+
+from .exceptions import ValidationError
+from .constants import ISIN_LENGTH
 
 
 class TransactionType(str, Enum):
@@ -206,6 +210,107 @@ class Config:
             isin=data['isin']
         )
 
+    def __post_init__(self):
+        """Validate configuration after initialization."""
+        self.validate()
+
+    def validate(self) -> None:
+        """
+        Validate the configuration parameters.
+
+        Raises:
+            ValidationError: If any validation check fails
+        """
+        # Validate ISIN format
+        if not self._is_valid_isin(self.isin):
+            raise ValidationError(
+                f"Invalid ISIN format: '{self.isin}'. "
+                f"ISIN must be {ISIN_LENGTH} characters long and follow ISO 6166 format "
+                "(2 letter country code + 9 alphanumeric characters + 1 check digit)."
+            )
+
+        # Validate date ranges
+        if self.start_date >= self.end_date:
+            raise ValidationError(
+                f"Invalid date range: start_date ({self.start_date.date()}) "
+                f"must be before end_date ({self.end_date.date()})."
+            )
+
+        # Validate OeKB report date if provided
+        if self.oekb_report_date is not None:
+            if self.oekb_report_date < self.start_date:
+                raise ValidationError(
+                    f"Invalid OeKB report date: {self.oekb_report_date.date()} "
+                    f"is before start_date ({self.start_date.date()})."
+                )
+            if self.oekb_report_date > self.end_date:
+                raise ValidationError(
+                    f"Invalid OeKB report date: {self.oekb_report_date.date()} "
+                    f"is after end_date ({self.end_date.date()})."
+                )
+
+        # Validate that ETFs with OeKB report date have proper OeKB currency
+        if (self.security_type == SecurityType.ACCUMULATING_ETF
+            and self.oekb_report_date is not None
+            and not self.oekb_report_currency):
+            raise ValidationError(
+                "OeKB report currency must be specified for accumulating ETFs "
+                "when OeKB report date is provided."
+            )
+
+        # Validate numeric ranges
+        if self.starting_quantity < 0:
+            raise ValidationError(
+                f"Invalid starting_quantity: {self.starting_quantity}. "
+                "Must be non-negative."
+            )
+
+        if self.starting_moving_avg_price < 0:
+            raise ValidationError(
+                f"Invalid starting_moving_avg_price: {self.starting_moving_avg_price}. "
+                "Must be non-negative."
+            )
+
+    @staticmethod
+    def _is_valid_isin(isin: str) -> bool:
+        """
+        Validate ISIN format according to ISO 6166 standard.
+
+        Args:
+            isin: ISIN string to validate
+
+        Returns:
+            True if ISIN is valid, False otherwise
+        """
+        if not isin or len(isin) != ISIN_LENGTH:
+            return False
+
+        # ISIN format: 2 letter country code + 9 alphanumeric + 1 check digit
+        if not re.match(r'^[A-Z]{2}[A-Z0-9]{9}[0-9]$', isin):
+            return False
+
+        # Validate check digit using Luhn mod 10 algorithm
+        # Convert letters to numbers (A=10, B=11, ..., Z=35)
+        digits = ''
+        for char in isin[:-1]:  # Exclude check digit
+            if char.isdigit():
+                digits += char
+            else:
+                digits += str(ord(char) - ord('A') + 10)
+
+        # Apply Luhn algorithm
+        total = 0
+        for i, digit in enumerate(reversed(digits)):
+            n = int(digit)
+            if i % 2 == 0:  # Double every second digit from right
+                n *= 2
+                if n > 9:
+                    n -= 9
+            total += n
+
+        check_digit = (10 - (total % 10)) % 10
+        return check_digit == int(isin[-1])
+
 
 @dataclass
 class ComputedTransaction:
@@ -352,3 +457,27 @@ class TaxCalculationResult:
 
     # Transaction history
     computed_transactions: List[ComputedTransaction]
+
+    def to_config(self) -> 'Config':
+        """
+        Convert the tax calculation result back to a Config object.
+
+        This is useful for passing to report generators that need the original
+        configuration parameters.
+
+        Returns:
+            Config object reconstructed from the result
+        """
+        return Config(
+            security_type=self.security_type,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            oekb_report_date=self.report_date,
+            oekb_distribution_equivalent_income_factor=self.distribution_equivalent_income_factor,
+            oekb_taxes_paid_abroad_factor=self.taxes_paid_abroad_factor,
+            oekb_adjustment_factor=self.adjustment_factor,
+            oekb_report_currency=self.report_currency if self.security_type == SecurityType.ACCUMULATING_ETF else None,
+            starting_quantity=self.starting_quantity,
+            starting_moving_avg_price=self.starting_moving_avg_price,
+            isin=self.isin
+        )
