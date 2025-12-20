@@ -12,3 +12,4 @@ wheels/
 # Specific files
 .idea
 *.json
+*.csv
