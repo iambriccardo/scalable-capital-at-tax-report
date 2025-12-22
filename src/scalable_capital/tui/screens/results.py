@@ -86,7 +86,7 @@ class ResultsScreen(Screen):
         )
         details_table.add_row(
             "[bright_cyan]Reporting Period[/]",
-            f"[bold bright_white]{result.start_date.strftime('%d/%m/%Y')}[/] → [bold bright_white]{result.end_date.strftime('%d/%m/%Y')}[/]"
+            f"[bold bright_white]{result.start_date.strftime('%d.%m.%Y')}[/] → [bold bright_white]{result.end_date.strftime('%d.%m.%Y')}[/]"
         )
 
         scroll.mount(details_table)
@@ -102,23 +102,23 @@ class ResultsScreen(Screen):
 
             oekb_table.add_row(
                 "[bright_cyan]Report Date[/]",
-                f"[bright_yellow]{result.report_date.strftime('%d/%m/%Y')}[/]"
+                f"[bright_yellow]{result.report_date.strftime('%d.%m.%Y')}[/]"
             )
             oekb_table.add_row(
                 "[bright_cyan]Distribution Equivalent Income Factor[/]",
-                f"[bright_yellow]{result.distribution_equivalent_income_factor:.6f}[/]"
+                f"[bright_yellow]{result.distribution_equivalent_income_factor:.6f}[/]".replace('.', ',')
             )
             oekb_table.add_row(
                 "[bright_cyan]Taxes Paid Abroad Factor[/]",
-                f"[bright_yellow]{result.taxes_paid_abroad_factor:.6f}[/]"
+                f"[bright_yellow]{result.taxes_paid_abroad_factor:.6f}[/]".replace('.', ',')
             )
             oekb_table.add_row(
                 "[bright_cyan]Adjustment Factor (per share)[/]",
-                f"[bright_yellow]{result.adjustment_factor:.6f}[/]"
+                f"[bright_yellow]{result.adjustment_factor:.6f}[/]".replace('.', ',')
             )
             oekb_table.add_row(
                 "[bright_cyan]ECB Exchange Rate[/]",
-                f"[bright_yellow]{result.ecb_exchange_rate:.6f} {result.report_currency}/EUR[/]"
+                f"[bright_yellow]{result.ecb_exchange_rate:.6f} {result.report_currency}/EUR[/]".replace('.', ',')
             )
 
             scroll.mount(oekb_table)
@@ -133,13 +133,13 @@ class ResultsScreen(Screen):
 
         # Starting row
         transactions_log.write(
-            f"[dim]{result.start_date.strftime('%d/%m/%Y'):<12}[/] "
+            f"[dim]{result.start_date.strftime('%d.%m.%Y'):<12}[/] "
             f"[bold bright_cyan]{'START':<6}[/] "
-            f"[bright_yellow]{result.starting_quantity:>10.3f}[/] "
+            f"[bright_yellow]{result.starting_quantity:>10.3f}[/] ".replace('.', ',') +
             f"{'—':>12} "
             f"{'—':>12} "
-            f"[bright_green]{result.starting_moving_avg_price:>12.4f}[/] "
-            f"[bright_magenta]{result.starting_quantity:>11.3f}[/]"
+            f"[bright_green]{result.starting_moving_avg_price:>12.4f}[/] ".replace('.', ',') +
+            f"[bright_magenta]{result.starting_quantity:>11.3f}[/]".replace('.', ',')
         )
 
         # Transaction rows
@@ -161,43 +161,43 @@ class ResultsScreen(Screen):
                 previous_moving_avg = trans.moving_avg_price - adj_per_share
 
                 transactions_log.write(
-                    f"[dim]{trans.date.strftime('%d/%m/%Y'):<12}[/] "
+                    f"[dim]{trans.date.strftime('%d.%m.%Y'):<12}[/] "
                     f"[bright_yellow]{'ADJ':<6}[/] "
-                    f"[dim]{0.0:>10.3f}[/] "
-                    f"[dim]{0.0:>12.4f}[/] "
-                    f"[bright_yellow]+{adj_total_eur:>11.4f}[/] "
-                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] "
-                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]"
+                    f"[dim]{0.0:>10.3f}[/] ".replace('.', ',') +
+                    f"[dim]{0.0:>12.4f}[/] ".replace('.', ',') +
+                    f"[bright_yellow]+{adj_total_eur:>11.4f}[/] ".replace('.', ',') +
+                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] ".replace('.', ',') +
+                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]".replace('.', ',')
                 )
                 # Add explanatory notes below the adjustment row
                 transactions_log.write(
-                    f"[dim]{'':12} ├─ Ausschüttungsgleiche Erträge (taxable): {trans.total_quantity:.3f} shares × "
+                    (f"[dim]{'':12} ├─ Ausschüttungsgleiche Erträge (taxable): {trans.total_quantity:.3f} shares × "
                     f"{result.distribution_equivalent_income_factor:.4f} factor × "
-                    f"{result.ecb_exchange_rate:.6f} EUR/{result.report_currency} = {dei_total:.4f} EUR[/]"
+                    f"{result.ecb_exchange_rate:.6f} EUR/{result.report_currency} = {dei_total:.4f} EUR[/]").replace('.', ',')
                 )
                 transactions_log.write(
-                    f"[dim]{'':12} └─ Adjusted Moving Avg: {previous_moving_avg:.4f} + {adj_per_share:.4f} (adjustment/share) = "
-                    f"{trans.moving_avg_price:.4f} EUR[/]"
+                    (f"[dim]{'':12} └─ Adjusted Moving Avg: {previous_moving_avg:.4f} + {adj_per_share:.4f} (adjustment/share) = "
+                    f"{trans.moving_avg_price:.4f} EUR[/]").replace('.', ',')
                 )
             elif isinstance(trans, BuyTransaction):
                 transactions_log.write(
-                    f"[dim]{trans.date.strftime('%d/%m/%Y'):<12}[/] "
+                    f"[dim]{trans.date.strftime('%d.%m.%Y'):<12}[/] "
                     f"[bright_green]{'BUY':<6}[/] "
-                    f"[bright_yellow]{trans.quantity:>10.3f}[/] "
-                    f"{trans.share_price:>12.3f} "
-                    f"{trans.total_price():>12.4f} "
-                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] "
-                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]"
+                    f"[bright_yellow]{trans.quantity:>10.3f}[/] ".replace('.', ',') +
+                    f"{trans.share_price:>12.3f} ".replace('.', ',') +
+                    f"{trans.total_price():>12.4f} ".replace('.', ',') +
+                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] ".replace('.', ',') +
+                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]".replace('.', ',')
                 )
             elif isinstance(trans, SellTransaction):
                 transactions_log.write(
-                    f"[dim]{trans.date.strftime('%d/%m/%Y'):<12}[/] "
+                    f"[dim]{trans.date.strftime('%d.%m.%Y'):<12}[/] "
                     f"[bright_red]{'SELL':<6}[/] "
-                    f"[bright_yellow]{trans.quantity:>10.3f}[/] "
-                    f"{trans.share_price:>12.3f} "
-                    f"{trans.total_price():>12.4f} "
-                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] "
-                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]"
+                    f"[bright_yellow]{trans.quantity:>10.3f}[/] ".replace('.', ',') +
+                    f"{trans.share_price:>12.3f} ".replace('.', ',') +
+                    f"{trans.total_price():>12.4f} ".replace('.', ',') +
+                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] ".replace('.', ',') +
+                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]".replace('.', ',')
                 )
 
         scroll.mount(transactions_log)
@@ -222,17 +222,17 @@ class ResultsScreen(Screen):
         tax_table.add_row(
             "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution-Equivalent Income[/]",
             "[dim]936/937[/]",
-            f"[bold bright_yellow]{dei:>12.2f}[/]"
+            f"[bold bright_yellow]{dei:>12.2f}[/]".replace('.', ',')
         )
         tax_table.add_row(
             "[bright_cyan]Anrechenbare ausl. Quellensteuer[/]\n[dim]Creditable Foreign Withholding Tax[/]",
             "[dim]984/998[/]",
-            f"[bold bright_yellow]{tpa:>12.2f}[/]"
+            f"[bold bright_yellow]{tpa:>12.2f}[/]".replace('.', ',')
         )
         tax_table.add_row(
             "[bright_cyan]Veräußerungsgewinne[/]\n[dim]Realized Capital Gains[/]",
             "[dim]—[/]",
-            f"[bold bright_yellow]{cg:>12.2f}[/]"
+            f"[bold bright_yellow]{cg:>12.2f}[/]".replace('.', ',')
         )
         tax_table.add_row(
             "",
@@ -242,12 +242,12 @@ class ResultsScreen(Screen):
         tax_table.add_row(
             "[bold bright_green]Bemessungsgrundlage[/]\n[dim]Tax Base (DEI + Capital Gains)[/]",
             "[dim]—[/]",
-            f"[bold bright_green]{total_taxable:>12.2f}[/]"
+            f"[bold bright_green]{total_taxable:>12.2f}[/]".replace('.', ',')
         )
         tax_table.add_row(
             "[bold bright_magenta]Geschätzte KESt (27,5%)[/]\n[dim]Estimated Capital Gains Tax[/]",
             "[dim]—[/]",
-            f"[bold bright_magenta]{estimated_tax:>12.2f}[/]"
+            f"[bold bright_magenta]{estimated_tax:>12.2f}[/]".replace('.', ',')
         )
 
         scroll.mount(tax_table)
@@ -263,26 +263,26 @@ class ResultsScreen(Screen):
 
         stats_table.add_row(
             "[bright_cyan]Starting Shares[/]",
-            f"[bright_yellow]{result.starting_quantity:>12.3f}[/]"
+            f"[bright_yellow]{result.starting_quantity:>12.3f}[/]".replace('.', ',')
         )
 
         if result.security_type == SecurityType.ACCUMULATING_ETF and result.report_date:
             stats_table.add_row(
-                f"[bright_cyan]Shares at OeKB Report Date[/] [dim]({result.report_date.strftime('%d/%m/%Y')})[/]",
-                f"[bright_yellow]{result.total_quantity_before_report:>12.3f}[/]"
+                f"[bright_cyan]Shares at OeKB Report Date[/] [dim]({result.report_date.strftime('%d.%m.%Y')})[/]",
+                f"[bright_yellow]{result.total_quantity_before_report:>12.3f}[/]".replace('.', ',')
             )
 
         stats_table.add_row(
             "[bright_cyan]Final Total Shares[/]",
-            f"[bright_yellow]{result.total_quantity:>12.3f}[/]"
+            f"[bright_yellow]{result.total_quantity:>12.3f}[/]".replace('.', ',')
         )
         stats_table.add_row(
             "[bright_cyan]Starting Moving Avg Price[/]",
-            f"[bright_yellow]{result.starting_moving_avg_price:>12.4f} EUR[/]"
+            f"[bright_yellow]{result.starting_moving_avg_price:>12.4f} EUR[/]".replace('.', ',')
         )
         stats_table.add_row(
             "[bright_cyan]Final Moving Avg Price[/]",
-            f"[bright_yellow]{result.final_moving_avg_price:>12.4f} EUR[/]"
+            f"[bright_yellow]{result.final_moving_avg_price:>12.4f} EUR[/]".replace('.', ',')
         )
 
         scroll.mount(stats_table)
@@ -315,7 +315,7 @@ class ResultsScreen(Screen):
 
         liability_table.add_row(
             "[bold bright_white]Total Tax Due (estimated)[/]",
-            f"[bold bright_white on dark_red] {projected:>12.2f} EUR [/]"
+            f"[bold bright_white on dark_red] {projected:>12.2f} EUR [/]".replace('.', ',')
         )
         liability_table.add_row(
             "[dim]From {0} securities[/]".format(len(self.app.state.results)),
@@ -341,9 +341,9 @@ class ResultsScreen(Screen):
             breakdown_table.add_row(
                 f"[bright_cyan]{result.isin}[/]",
                 type_display,
-                f"[bright_yellow]{round(result.distribution_equivalent_income, 2):>12.2f}[/]",
-                f"[bright_yellow]{round(result.taxes_paid_abroad, 2):>12.2f}[/]",
-                f"[bright_yellow]{round(result.total_capital_gains, 2):>14.2f}[/]"
+                f"[bright_yellow]{round(result.distribution_equivalent_income, 2):>12.2f}[/]".replace('.', ','),
+                f"[bright_yellow]{round(result.taxes_paid_abroad, 2):>12.2f}[/]".replace('.', ','),
+                f"[bright_yellow]{round(result.total_capital_gains, 2):>14.2f}[/]".replace('.', ',')
             )
 
         scroll.mount(breakdown_table)
@@ -361,28 +361,28 @@ class ResultsScreen(Screen):
         total_table.add_row(
             "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution-Equivalent Income[/]",
             "[dim]936/937[/]",
-            f"[bold bright_yellow]{dei:>12.2f}[/]"
+            f"[bold bright_yellow]{dei:>12.2f}[/]".replace('.', ',')
         )
         total_table.add_row(
             "[bright_cyan]Veräußerungsgewinne[/]\n[dim]Realized Capital Gains[/]",
             "[dim]—[/]",
-            f"[bold bright_yellow]{cg:>12.2f}[/]"
+            f"[bold bright_yellow]{cg:>12.2f}[/]".replace('.', ',')
         )
         total_table.add_row(
             "[bright_cyan]Anrechenbare ausl. Quellensteuer[/]\n[dim]Creditable Foreign Withholding Tax[/]",
             "[dim]984/998[/]",
-            f"[bold bright_yellow]{tpa:>12.2f}[/]"
+            f"[bold bright_yellow]{tpa:>12.2f}[/]".replace('.', ',')
         )
         total_table.add_row("", "", "")
         total_table.add_row(
             "[bold bright_green]Bemessungsgrundlage[/]\n[dim]Tax Base (Total)[/]",
             "[dim]—[/]",
-            f"[bold bright_green]{total_taxable:>12.2f}[/]"
+            f"[bold bright_green]{total_taxable:>12.2f}[/]".replace('.', ',')
         )
         total_table.add_row(
             "[bold bright_magenta]Geschätzte KESt (27,5%)[/]\n[dim]Estimated Capital Gains Tax[/]",
             "[dim]—[/]",
-            f"[bold bright_magenta]{projected:>12.2f}[/]"
+            f"[bold bright_magenta]{projected:>12.2f}[/]".replace('.', ',')
         )
 
         scroll.mount(total_table)
@@ -405,21 +405,21 @@ class ResultsScreen(Screen):
         finanzonline_table.add_row(
             "[bold bright_white]936/937[/]",
             "Ausschüttungsgleiche Erträge / Distribution-Equivalent Income",
-            f"[bright_yellow]{dei:>12.2f}[/]"
+            f"[bright_yellow]{dei:>12.2f}[/]".replace('.', ',')
         )
         finanzonline_table.add_row(
             "[bold bright_white]984/998[/]",
             "Anrechenbare ausl. Quellensteuer / Creditable Foreign Tax",
-            f"[bright_yellow]{tpa:>12.2f}[/]"
+            f"[bright_yellow]{tpa:>12.2f}[/]".replace('.', ',')
         )
         finanzonline_table.add_row(
             "[bold bright_white]—[/]",
             "Veräußerungsgewinne / Realized Capital Gains",
-            f"[bright_yellow]{cg:>12.2f}[/]"
+            f"[bright_yellow]{cg:>12.2f}[/]".replace('.', ',')
         )
 
         scroll.mount(finanzonline_table)
-        scroll.mount(Label(f"\n💶 [bold bright_white on dark_red] VORAUSSICHTLICHE STEUERZAHLUNG / EXPECTED TAX PAYMENT: {projected:>10.2f} EUR [/]\n"))
+        scroll.mount(Label(f"\n💶 [bold bright_white on dark_red] VORAUSSICHTLICHE STEUERZAHLUNG / EXPECTED TAX PAYMENT: {projected:>10.2f} EUR [/]\n".replace('.', ',')))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
