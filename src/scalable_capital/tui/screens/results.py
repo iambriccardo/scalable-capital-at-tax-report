@@ -3,7 +3,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Vertical, Horizontal, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Static, Label, TabbedContent, TabPane, RichLog
+from textual.widgets import Button, Static, Label, TabbedContent, TabPane, RichLog, DataTable
 
 from scalable_capital.models import TaxCalculationResult, AdjustmentTransaction, BuyTransaction, SellTransaction, SecurityType
 from scalable_capital.constants import AUSTRIAN_CAPITAL_GAINS_TAX_RATE
@@ -72,23 +72,61 @@ class ResultsScreen(Screen):
     def _populate_security_content(self, scroll: VerticalScroll, result: TaxCalculationResult) -> None:
         """Populate a scroll container with content for a single security tab."""
         # Header
-        scroll.mount(Label(f"\n[bold white on blue] {result.isin} [/]\n", classes="section-header"))
+        scroll.mount(Label(f"\n[bold bright_white on dark_blue] 🏦 {result.isin} [/]"))
+        scroll.mount(Label(""))
 
-        # Details section
-        scroll.mount(Label("[bold cyan]📋 Security Details[/]"))
-        scroll.mount(Label(f"[dim]Type:[/]   [bold]{result.security_type.value.replace('_', ' ').title()}[/]"))
-        scroll.mount(Label(f"[dim]Period:[/] [bold]{result.start_date.strftime('%d/%m/%Y')}[/] → [bold]{result.end_date.strftime('%d/%m/%Y')}[/]\n"))
+        # Security Details Table
+        details_table = DataTable(show_header=False, show_cursor=False)
+        details_table.add_column("Property", key="prop", width=25)
+        details_table.add_column("Value", key="value", width=50)
 
+        details_table.add_row(
+            "[bright_cyan]Security Type[/]",
+            f"[bold bright_white]{result.security_type.value.replace('_', ' ').title()}[/]"
+        )
+        details_table.add_row(
+            "[bright_cyan]Reporting Period[/]",
+            f"[bold bright_white]{result.start_date.strftime('%d/%m/%Y')}[/] → [bold bright_white]{result.end_date.strftime('%d/%m/%Y')}[/]"
+        )
+
+        scroll.mount(details_table)
+
+        # OeKB Information if applicable
         if result.security_type == SecurityType.ACCUMULATING_ETF and result.report_date:
-            scroll.mount(Label("[bold cyan]🏦 OeKB Information[/]"))
-            scroll.mount(Label(f"[dim]Report Date:[/]                 [yellow]{result.report_date.strftime('%d/%m/%Y')}[/]"))
-            scroll.mount(Label(f"[dim]Distribution Income Factor:[/]  [yellow]{result.distribution_equivalent_income_factor:.4f}[/]"))
-            scroll.mount(Label(f"[dim]Taxes Paid Abroad Factor:[/]    [yellow]{result.taxes_paid_abroad_factor:.4f}[/]"))
-            scroll.mount(Label(f"[dim]Adjustment Factor:[/]            [yellow]{result.adjustment_factor:.4f}[/]"))
-            scroll.mount(Label(f"[dim]ECB Exchange Rate:[/]            [yellow]{result.ecb_exchange_rate:.4f}[/] ({result.report_currency} → EUR)\n"))
+            scroll.mount(Label("\n[bold bright_white on dark_green] 📊 OeKB REPORT DATA [/]"))
+            scroll.mount(Label(""))
+
+            oekb_table = DataTable(show_header=False, show_cursor=False)
+            oekb_table.add_column("Factor", key="factor", width=40)
+            oekb_table.add_column("Value", key="value", width=30)
+
+            oekb_table.add_row(
+                "[bright_cyan]Report Date[/]",
+                f"[bright_yellow]{result.report_date.strftime('%d/%m/%Y')}[/]"
+            )
+            oekb_table.add_row(
+                "[bright_cyan]Distribution Equivalent Income Factor[/]",
+                f"[bright_yellow]{result.distribution_equivalent_income_factor:.6f}[/]"
+            )
+            oekb_table.add_row(
+                "[bright_cyan]Taxes Paid Abroad Factor[/]",
+                f"[bright_yellow]{result.taxes_paid_abroad_factor:.6f}[/]"
+            )
+            oekb_table.add_row(
+                "[bright_cyan]Adjustment Factor (per share)[/]",
+                f"[bright_yellow]{result.adjustment_factor:.6f}[/]"
+            )
+            oekb_table.add_row(
+                "[bright_cyan]ECB Exchange Rate[/]",
+                f"[bright_yellow]{result.ecb_exchange_rate:.6f} {result.report_currency}/EUR[/]"
+            )
+
+            scroll.mount(oekb_table)
+            scroll.mount(Label(""))
 
         # Transactions
-        scroll.mount(Label("[bold cyan]📊 Transaction History[/]"))
+        scroll.mount(Label("[bold bright_white on purple] 📊 TRANSACTION HISTORY [/]"))
+        scroll.mount(Label(""))
         transactions_log = RichLog(wrap=False, markup=True)
         transactions_log.write(f"{'Date':<12} {'Type':<6} {'Qty':>10} {'Price':>12} {'Total':>12} {'Mov.Avg':>12} {'Total Qty':>11}")
         transactions_log.write("─" * 78)
@@ -96,12 +134,12 @@ class ResultsScreen(Screen):
         # Starting row
         transactions_log.write(
             f"[dim]{result.start_date.strftime('%d/%m/%Y'):<12}[/] "
-            f"[bold cyan]{'START':<6}[/] "
-            f"[yellow]{result.starting_quantity:>10.3f}[/] "
+            f"[bold bright_cyan]{'START':<6}[/] "
+            f"[bright_yellow]{result.starting_quantity:>10.3f}[/] "
             f"{'—':>12} "
             f"{'—':>12} "
-            f"[green]{result.starting_moving_avg_price:>12.4f}[/] "
-            f"[magenta]{result.starting_quantity:>11.3f}[/]"
+            f"[bright_green]{result.starting_moving_avg_price:>12.4f}[/] "
+            f"[bright_magenta]{result.starting_quantity:>11.3f}[/]"
         )
 
         # Transaction rows
@@ -124,12 +162,12 @@ class ResultsScreen(Screen):
 
                 transactions_log.write(
                     f"[dim]{trans.date.strftime('%d/%m/%Y'):<12}[/] "
-                    f"[yellow]{'ADJ':<6}[/] "
+                    f"[bright_yellow]{'ADJ':<6}[/] "
                     f"[dim]{0.0:>10.3f}[/] "
                     f"[dim]{0.0:>12.4f}[/] "
-                    f"[yellow]+{adj_total_eur:>11.4f}[/] "
-                    f"[green]{trans.moving_avg_price:>12.4f}[/] "
-                    f"[magenta]{trans.total_quantity:>11.3f}[/]"
+                    f"[bright_yellow]+{adj_total_eur:>11.4f}[/] "
+                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] "
+                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]"
                 )
                 # Add explanatory notes below the adjustment row
                 transactions_log.write(
@@ -144,46 +182,111 @@ class ResultsScreen(Screen):
             elif isinstance(trans, BuyTransaction):
                 transactions_log.write(
                     f"[dim]{trans.date.strftime('%d/%m/%Y'):<12}[/] "
-                    f"[green]{'BUY':<6}[/] "
-                    f"[yellow]{trans.quantity:>10.3f}[/] "
+                    f"[bright_green]{'BUY':<6}[/] "
+                    f"[bright_yellow]{trans.quantity:>10.3f}[/] "
                     f"{trans.share_price:>12.3f} "
                     f"{trans.total_price():>12.4f} "
-                    f"[green]{trans.moving_avg_price:>12.4f}[/] "
-                    f"[magenta]{trans.total_quantity:>11.3f}[/]"
+                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] "
+                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]"
                 )
             elif isinstance(trans, SellTransaction):
                 transactions_log.write(
                     f"[dim]{trans.date.strftime('%d/%m/%Y'):<12}[/] "
-                    f"[red]{'SELL':<6}[/] "
-                    f"[yellow]{trans.quantity:>10.3f}[/] "
+                    f"[bright_red]{'SELL':<6}[/] "
+                    f"[bright_yellow]{trans.quantity:>10.3f}[/] "
                     f"{trans.share_price:>12.3f} "
                     f"{trans.total_price():>12.4f} "
-                    f"[green]{trans.moving_avg_price:>12.4f}[/] "
-                    f"[magenta]{trans.total_quantity:>11.3f}[/]"
+                    f"[bright_green]{trans.moving_avg_price:>12.4f}[/] "
+                    f"[bright_magenta]{trans.total_quantity:>11.3f}[/]"
                 )
 
         scroll.mount(transactions_log)
 
-        # Tax Summary Box
+        # Tax Summary Section
         dei = round(result.distribution_equivalent_income, 2)
         tpa = round(result.taxes_paid_abroad, 2)
         cg = round(result.total_capital_gains, 2)
+        total_taxable = dei + cg
+        estimated_tax = round((total_taxable * AUSTRIAN_CAPITAL_GAINS_TAX_RATE) - tpa, 2)
 
-        scroll.mount(Label("\n[bold white on green] 💰 TAX SUMMARY [/]\n"))
-        scroll.mount(Label(f"[bold cyan]Distribution Equivalent Income[/] [dim](Kennzahl 936/937)[/]"))
-        scroll.mount(Label(f"  [bold yellow]{dei:>10.2f} EUR[/]\n"))
-        scroll.mount(Label(f"[bold cyan]Taxes Paid Abroad[/] [dim](Kennzahl 984/998)[/]"))
-        scroll.mount(Label(f"  [bold yellow]{tpa:>10.2f} EUR[/]\n"))
-        scroll.mount(Label(f"[bold cyan]Capital Gains from Sales[/]"))
-        scroll.mount(Label(f"  [bold yellow]{cg:>10.2f} EUR[/]\n"))
+        scroll.mount(Label("\n"))
+        scroll.mount(Label("[bold bright_white on dark_blue] 💰 TAX SUMMARY [/]"))
+        scroll.mount(Label(""))
 
-        # Statistics
-        scroll.mount(Label("[bold cyan]📈 Share Statistics[/]"))
-        scroll.mount(Label(f"[dim]Starting Shares:[/]                   [yellow]{result.starting_quantity:>12.3f}[/]"))
+        # Create tax summary table
+        tax_table = DataTable(show_header=True, show_cursor=False)
+        tax_table.add_column("Tax Item", key="item", width=45)
+        tax_table.add_column("Kennzahl", key="kennzahl", width=12)
+        tax_table.add_column("Amount (EUR)", key="amount", width=15)
+
+        tax_table.add_row(
+            "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution-Equivalent Income[/]",
+            "[dim]936/937[/]",
+            f"[bold bright_yellow]{dei:>12.2f}[/]"
+        )
+        tax_table.add_row(
+            "[bright_cyan]Anrechenbare ausl. Quellensteuer[/]\n[dim]Creditable Foreign Withholding Tax[/]",
+            "[dim]984/998[/]",
+            f"[bold bright_yellow]{tpa:>12.2f}[/]"
+        )
+        tax_table.add_row(
+            "[bright_cyan]Veräußerungsgewinne[/]\n[dim]Realized Capital Gains[/]",
+            "[dim]—[/]",
+            f"[bold bright_yellow]{cg:>12.2f}[/]"
+        )
+        tax_table.add_row(
+            "",
+            "",
+            ""
+        )
+        tax_table.add_row(
+            "[bold bright_green]Bemessungsgrundlage[/]\n[dim]Tax Base (DEI + Capital Gains)[/]",
+            "[dim]—[/]",
+            f"[bold bright_green]{total_taxable:>12.2f}[/]"
+        )
+        tax_table.add_row(
+            "[bold bright_magenta]Geschätzte KESt (27,5%)[/]\n[dim]Estimated Capital Gains Tax[/]",
+            "[dim]—[/]",
+            f"[bold bright_magenta]{estimated_tax:>12.2f}[/]"
+        )
+
+        scroll.mount(tax_table)
+
+        # Share Statistics Section
+        scroll.mount(Label("\n"))
+        scroll.mount(Label("[bold bright_white on dark_cyan] 📈 SHARE STATISTICS [/]"))
+        scroll.mount(Label(""))
+
+        stats_table = DataTable(show_header=False, show_cursor=False)
+        stats_table.add_column("Metric", key="metric", width=40)
+        stats_table.add_column("Value", key="value", width=20)
+
+        stats_table.add_row(
+            "[bright_cyan]Starting Shares[/]",
+            f"[bright_yellow]{result.starting_quantity:>12.3f}[/]"
+        )
+
         if result.security_type == SecurityType.ACCUMULATING_ETF and result.report_date:
-            scroll.mount(Label(f"[dim]Shares at OeKB Report Date:[/]        [yellow]{result.total_quantity_before_report:>12.3f}[/] [dim]({result.report_date.strftime('%d/%m/%Y')})[/]"))
-        scroll.mount(Label(f"[dim]Final Total Shares:[/]                [yellow]{result.total_quantity:>12.3f}[/]"))
-        scroll.mount(Label(f"[dim]Final Moving Average Price:[/]        [yellow]{result.final_moving_avg_price:>12.4f}[/] EUR"))
+            stats_table.add_row(
+                f"[bright_cyan]Shares at OeKB Report Date[/] [dim]({result.report_date.strftime('%d/%m/%Y')})[/]",
+                f"[bright_yellow]{result.total_quantity_before_report:>12.3f}[/]"
+            )
+
+        stats_table.add_row(
+            "[bright_cyan]Final Total Shares[/]",
+            f"[bright_yellow]{result.total_quantity:>12.3f}[/]"
+        )
+        stats_table.add_row(
+            "[bright_cyan]Starting Moving Avg Price[/]",
+            f"[bright_yellow]{result.starting_moving_avg_price:>12.4f} EUR[/]"
+        )
+        stats_table.add_row(
+            "[bright_cyan]Final Moving Avg Price[/]",
+            f"[bright_yellow]{result.final_moving_avg_price:>12.4f} EUR[/]"
+        )
+
+        scroll.mount(stats_table)
+        scroll.mount(Label(""))
 
     def _populate_summary_content(self, scroll: VerticalScroll) -> None:
         """Populate a scroll container with the summary tab content."""
@@ -195,47 +298,128 @@ class ResultsScreen(Screen):
         dei = round(total_dei, 2)
         tpa = round(total_tpa, 2)
         cg = round(total_cg, 2)
-        projected = round(((total_dei + total_cg) * AUSTRIAN_CAPITAL_GAINS_TAX_RATE) - total_tpa, 2)
+        total_taxable = dei + cg
+        projected = round((total_taxable * AUSTRIAN_CAPITAL_GAINS_TAX_RATE) - tpa, 2)
 
         # Header
-        scroll.mount(Label("\n[bold white on magenta] 📊 FINAL SUMMARY - ALL SECURITIES [/]\n"))
+        scroll.mount(Label("\n[bold bright_white on purple] 📊 FINAL SUMMARY - ALL SECURITIES [/]"))
+        scroll.mount(Label(""))
+
+        # Key metrics card
+        scroll.mount(Label("[bold bright_white on dark_red] 💰 ESTIMATED TAX LIABILITY [/]"))
+        scroll.mount(Label(""))
+
+        liability_table = DataTable(show_header=False, show_cursor=False)
+        liability_table.add_column("Item", key="item", width=50)
+        liability_table.add_column("Amount", key="amount", width=18)
+
+        liability_table.add_row(
+            "[bold bright_white]Total Tax Due (estimated)[/]",
+            f"[bold bright_white on dark_red] {projected:>12.2f} EUR [/]"
+        )
+        liability_table.add_row(
+            "[dim]From {0} securities[/]".format(len(self.app.state.results)),
+            ""
+        )
+
+        scroll.mount(liability_table)
 
         # Securities breakdown
-        scroll.mount(Label("[bold cyan]Securities Breakdown[/]"))
-        breakdown_log = RichLog(wrap=False, markup=True)
-        breakdown_log.write(f"{'ISIN':<14} {'Type':<18} {'DEI':>11} {'TPA':>11} {'Cap Gains':>14}")
-        breakdown_log.write("─" * 78)
+        scroll.mount(Label("\n"))
+        scroll.mount(Label("[bold bright_white on dark_blue] 📋 SECURITIES BREAKDOWN [/]"))
+        scroll.mount(Label(""))
+
+        breakdown_table = DataTable(show_header=True, show_cursor=False)
+        breakdown_table.add_column("ISIN", key="isin", width=14)
+        breakdown_table.add_column("Type", key="type", width=20)
+        breakdown_table.add_column("DEI (EUR)", key="dei", width=14)
+        breakdown_table.add_column("TPA (EUR)", key="tpa", width=14)
+        breakdown_table.add_column("Cap Gains (EUR)", key="cg", width=16)
 
         for result in self.app.state.results:
             type_display = result.security_type.value.replace('_', ' ').title()
-            breakdown_log.write(
-                f"[cyan]{result.isin:<14}[/] "
-                f"{type_display:<18} "
-                f"[yellow]{round(result.distribution_equivalent_income, 2):>11.2f}[/] "
-                f"[yellow]{round(result.taxes_paid_abroad, 2):>11.2f}[/] "
-                f"[yellow]{round(result.total_capital_gains, 2):>14.2f}[/]"
+            breakdown_table.add_row(
+                f"[bright_cyan]{result.isin}[/]",
+                type_display,
+                f"[bright_yellow]{round(result.distribution_equivalent_income, 2):>12.2f}[/]",
+                f"[bright_yellow]{round(result.taxes_paid_abroad, 2):>12.2f}[/]",
+                f"[bright_yellow]{round(result.total_capital_gains, 2):>14.2f}[/]"
             )
 
-        scroll.mount(breakdown_log)
+        scroll.mount(breakdown_table)
 
         # Grand Total
-        scroll.mount(Label("\n[bold white on blue] 🎯 TOTAL TAX LIABILITY [/]\n"))
-        scroll.mount(Label(f"[bold]Distribution Equivalent Income[/] [dim](936/937)[/]  [bold green]{dei:>15.2f} EUR[/]"))
-        scroll.mount(Label(f"[bold]Capital Gains[/]                                [bold green]{cg:>15.2f} EUR[/]"))
-        scroll.mount(Label(f"[bold]Taxes Paid Abroad[/] [dim](984/998)[/]              [bold red]- {tpa:>13.2f} EUR[/]"))
-        scroll.mount(Label("─" * 78))
-        scroll.mount(Label(f"[bold white on red] AMOUNT DUE:                             {projected:>15.2f} EUR [/]\n"))
+        scroll.mount(Label("\n"))
+        scroll.mount(Label("[bold bright_white on dark_green] 🎯 AGGREGATED TAX CALCULATION [/]"))
+        scroll.mount(Label(""))
 
-        scroll.mount(Label("[dim]Calculation: (DEI + Capital Gains) × 27.5% - Taxes Paid Abroad[/]"))
+        total_table = DataTable(show_header=True, show_cursor=False)
+        total_table.add_column("Tax Item", key="item", width=45)
+        total_table.add_column("Kennzahl", key="kennzahl", width=12)
+        total_table.add_column("Amount (EUR)", key="amount", width=15)
+
+        total_table.add_row(
+            "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution Equivalent Income[/]",
+            "[dim]936/937[/]",
+            f"[bold bright_yellow]{dei:>12.2f}[/]"
+        )
+        total_table.add_row(
+            "[bright_cyan]Veräußerungsgewinne[/]\n[dim]Capital Gains from Sales[/]",
+            "[dim]—[/]",
+            f"[bold bright_yellow]{cg:>12.2f}[/]"
+        )
+        total_table.add_row(
+            "[bright_cyan]Kapitalertragsteuer Ausland[/]\n[dim]Foreign Taxes Paid[/]",
+            "[dim]984/998[/]",
+            f"[bold bright_yellow]{tpa:>12.2f}[/]"
+        )
+        total_table.add_row("", "", "")
+        total_table.add_row(
+            "[bold bright_green]Steuerpflichtige Basis[/]\n[dim]Total Taxable Base[/]",
+            "[dim]—[/]",
+            f"[bold bright_green]{total_taxable:>12.2f}[/]"
+        )
+        total_table.add_row(
+            "[bold bright_magenta]Geschätzte KESt (27.5%)[/]\n[dim]Estimated Tax Liability[/]",
+            "[dim]—[/]",
+            f"[bold bright_magenta]{projected:>12.2f}[/]"
+        )
+
+        scroll.mount(total_table)
+
+        scroll.mount(Label("\n[dim]Calculation: (DEI + Capital Gains) × 27.5% - Taxes Paid Abroad[/]"))
         scroll.mount(Label("[dim]All amounts rounded to 2 decimals as required by Finanzonline[/]\n"))
 
         # Next Steps
-        scroll.mount(Label("[bold cyan]📝 Next Steps[/]"))
-        scroll.mount(Label("\n[bold]Enter these amounts in your Finanzonline E1kv form:[/]\n"))
-        scroll.mount(Label(f"  • Kennzahl [bold]936/937[/]: [yellow]{dei:.2f} EUR[/] [dim](Distribution Equiv. Income)[/]"))
-        scroll.mount(Label(f"  • Kennzahl [bold]984/998[/]: [yellow]{tpa:.2f} EUR[/] [dim](Foreign Taxes)[/]"))
-        scroll.mount(Label(f"  • [bold]Capital Gains[/]:    [yellow]{cg:.2f} EUR[/]"))
-        scroll.mount(Label(f"\n  💶 [bold]Expected tax payment: [yellow]{projected:.2f} EUR[/][/]\n"))
+        scroll.mount(Label("\n"))
+        scroll.mount(Label("[bold black on bright_yellow] 📝 FINANZONLINE ENTRY GUIDE [/]"))
+        scroll.mount(Label(""))
+
+        scroll.mount(Label("[bold bright_white]Enter these amounts in your Finanzonline E1kv form:[/]\n"))
+
+        finanzonline_table = DataTable(show_header=True, show_cursor=False)
+        finanzonline_table.add_column("Kennzahl", key="kennzahl", width=15)
+        finanzonline_table.add_column("Description", key="desc", width=35)
+        finanzonline_table.add_column("Amount (EUR)", key="amount", width=15)
+
+        finanzonline_table.add_row(
+            "[bold bright_white]936/937[/]",
+            "Ausschüttungsgleiche Erträge",
+            f"[bright_yellow]{dei:>12.2f}[/]"
+        )
+        finanzonline_table.add_row(
+            "[bold bright_white]984/998[/]",
+            "Ausländische Steuer",
+            f"[bright_yellow]{tpa:>12.2f}[/]"
+        )
+        finanzonline_table.add_row(
+            "[bold bright_white]—[/]",
+            "Veräußerungsgewinne",
+            f"[bright_yellow]{cg:>12.2f}[/]"
+        )
+
+        scroll.mount(finanzonline_table)
+        scroll.mount(Label(f"\n💶 [bold bright_white on dark_red] EXPECTED TAX PAYMENT: {projected:>10.2f} EUR [/]\n"))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
