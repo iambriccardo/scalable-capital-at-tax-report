@@ -210,14 +210,14 @@ class ResultsScreen(Screen):
         estimated_tax = round((total_taxable * AUSTRIAN_CAPITAL_GAINS_TAX_RATE) - tpa, 2)
 
         scroll.mount(Label("\n"))
-        scroll.mount(Label("[bold bright_white on dark_blue] 💰 TAX SUMMARY [/]"))
+        scroll.mount(Label("[bold bright_white on dark_blue] 💰 STEUERÜBERSICHT / TAX SUMMARY [/]"))
         scroll.mount(Label(""))
 
         # Create tax summary table
         tax_table = DataTable(show_header=True, show_cursor=False)
-        tax_table.add_column("Tax Item", key="item", width=45)
+        tax_table.add_column("Steuerposition / Tax Item", key="item", width=45)
         tax_table.add_column("Kennzahl", key="kennzahl", width=12)
-        tax_table.add_column("Amount (EUR)", key="amount", width=15)
+        tax_table.add_column("Betrag (EUR)", key="amount", width=15)
 
         tax_table.add_row(
             "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution-Equivalent Income[/]",
@@ -354,72 +354,72 @@ class ResultsScreen(Screen):
         scroll.mount(Label(""))
 
         total_table = DataTable(show_header=True, show_cursor=False)
-        total_table.add_column("Tax Item", key="item", width=45)
+        total_table.add_column("Steuerposition / Tax Item", key="item", width=45)
         total_table.add_column("Kennzahl", key="kennzahl", width=12)
-        total_table.add_column("Amount (EUR)", key="amount", width=15)
+        total_table.add_column("Betrag (EUR)", key="amount", width=15)
 
         total_table.add_row(
-            "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution Equivalent Income[/]",
+            "[bright_cyan]Ausschüttungsgleiche Erträge[/]\n[dim]Distribution-Equivalent Income[/]",
             "[dim]936/937[/]",
             f"[bold bright_yellow]{dei:>12.2f}[/]"
         )
         total_table.add_row(
-            "[bright_cyan]Veräußerungsgewinne[/]\n[dim]Capital Gains from Sales[/]",
+            "[bright_cyan]Veräußerungsgewinne[/]\n[dim]Realized Capital Gains[/]",
             "[dim]—[/]",
             f"[bold bright_yellow]{cg:>12.2f}[/]"
         )
         total_table.add_row(
-            "[bright_cyan]Kapitalertragsteuer Ausland[/]\n[dim]Foreign Taxes Paid[/]",
+            "[bright_cyan]Anrechenbare ausl. Quellensteuer[/]\n[dim]Creditable Foreign Withholding Tax[/]",
             "[dim]984/998[/]",
             f"[bold bright_yellow]{tpa:>12.2f}[/]"
         )
         total_table.add_row("", "", "")
         total_table.add_row(
-            "[bold bright_green]Steuerpflichtige Basis[/]\n[dim]Total Taxable Base[/]",
+            "[bold bright_green]Bemessungsgrundlage[/]\n[dim]Tax Base (Total)[/]",
             "[dim]—[/]",
             f"[bold bright_green]{total_taxable:>12.2f}[/]"
         )
         total_table.add_row(
-            "[bold bright_magenta]Geschätzte KESt (27.5%)[/]\n[dim]Estimated Tax Liability[/]",
+            "[bold bright_magenta]Geschätzte KESt (27,5%)[/]\n[dim]Estimated Capital Gains Tax[/]",
             "[dim]—[/]",
             f"[bold bright_magenta]{projected:>12.2f}[/]"
         )
 
         scroll.mount(total_table)
 
-        scroll.mount(Label("\n[dim]Calculation: (DEI + Capital Gains) × 27.5% - Taxes Paid Abroad[/]"))
-        scroll.mount(Label("[dim]All amounts rounded to 2 decimals as required by Finanzonline[/]\n"))
+        scroll.mount(Label("\n[dim]Berechnung / Calculation: (Ausschüttungsgl. Erträge + Veräußerungsgewinne) × 27,5% - ausl. Quellensteuer[/]"))
+        scroll.mount(Label("[dim]All amounts rounded to 2 decimals as required by FinanzOnline[/]\n"))
 
         # Next Steps
         scroll.mount(Label("\n"))
         scroll.mount(Label("[bold black on bright_yellow] 📝 FINANZONLINE ENTRY GUIDE [/]"))
         scroll.mount(Label(""))
 
-        scroll.mount(Label("[bold bright_white]Enter these amounts in your Finanzonline E1kv form:[/]\n"))
+        scroll.mount(Label("[bold bright_white]Enter these amounts in your FinanzOnline E1kv form:[/]\n"))
 
         finanzonline_table = DataTable(show_header=True, show_cursor=False)
         finanzonline_table.add_column("Kennzahl", key="kennzahl", width=15)
-        finanzonline_table.add_column("Description", key="desc", width=35)
-        finanzonline_table.add_column("Amount (EUR)", key="amount", width=15)
+        finanzonline_table.add_column("Bezeichnung / Description", key="desc", width=50)
+        finanzonline_table.add_column("Betrag (EUR)", key="amount", width=15)
 
         finanzonline_table.add_row(
             "[bold bright_white]936/937[/]",
-            "Ausschüttungsgleiche Erträge",
+            "Ausschüttungsgleiche Erträge / Distribution-Equivalent Income",
             f"[bright_yellow]{dei:>12.2f}[/]"
         )
         finanzonline_table.add_row(
             "[bold bright_white]984/998[/]",
-            "Ausländische Steuer",
+            "Anrechenbare ausl. Quellensteuer / Creditable Foreign Tax",
             f"[bright_yellow]{tpa:>12.2f}[/]"
         )
         finanzonline_table.add_row(
             "[bold bright_white]—[/]",
-            "Veräußerungsgewinne",
+            "Veräußerungsgewinne / Realized Capital Gains",
             f"[bright_yellow]{cg:>12.2f}[/]"
         )
 
         scroll.mount(finanzonline_table)
-        scroll.mount(Label(f"\n💶 [bold bright_white on dark_red] EXPECTED TAX PAYMENT: {projected:>10.2f} EUR [/]\n"))
+        scroll.mount(Label(f"\n💶 [bold bright_white on dark_red] VORAUSSICHTLICHE STEUERZAHLUNG / EXPECTED TAX PAYMENT: {projected:>10.2f} EUR [/]\n"))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
