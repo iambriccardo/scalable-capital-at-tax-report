@@ -107,14 +107,17 @@ class ResultsScreen(Screen):
         # Transaction rows
         for trans in result.computed_transactions:
             if isinstance(trans, AdjustmentTransaction):
-                # Calculate the adjustment amount properly
-                # Total Ertrag in EUR = shares × distribution factor × exchange rate
-                adj_total_eur = (result.total_quantity_before_report *
-                                result.distribution_equivalent_income_factor *
-                                result.ecb_exchange_rate)
+                # The adjustment_factor is already the per-share adjustment in EUR
+                adj_per_share = trans.adjustment_factor
 
-                # Adjustment per share = total adjustment / number of shares
-                adj_per_share = adj_total_eur / trans.total_quantity if trans.total_quantity > 0 else 0
+                # Total adjustment applied = adjustment per share × total shares
+                adj_total_eur = adj_per_share * trans.total_quantity
+
+                # Ausschüttungsgleiche Erträge (taxable distribution equivalent income)
+                # This is different from the adjustment factor - it's the taxable amount
+                dei_total = (trans.total_quantity *
+                            result.distribution_equivalent_income_factor *
+                            result.ecb_exchange_rate)
 
                 # Calculate what the moving average was before this adjustment
                 previous_moving_avg = trans.moving_avg_price - adj_per_share
@@ -130,9 +133,9 @@ class ResultsScreen(Screen):
                 )
                 # Add explanatory notes below the adjustment row
                 transactions_log.write(
-                    f"[dim]{'':12} ├─ Ausschüttungsgleiche Erträge: {result.total_quantity_before_report:.3f} shares × "
+                    f"[dim]{'':12} ├─ Ausschüttungsgleiche Erträge (taxable): {trans.total_quantity:.3f} shares × "
                     f"{result.distribution_equivalent_income_factor:.4f} factor × "
-                    f"{result.ecb_exchange_rate:.6f} EUR/{result.report_currency} = {adj_total_eur:.4f} EUR[/]"
+                    f"{result.ecb_exchange_rate:.6f} EUR/{result.report_currency} = {dei_total:.4f} EUR[/]"
                 )
                 transactions_log.write(
                     f"[dim]{'':12} └─ Adjusted Moving Avg: {previous_moving_avg:.4f} + {adj_per_share:.4f} (adjustment/share) = "
@@ -245,7 +248,6 @@ class ResultsScreen(Screen):
             self.app.state.reset()
             self.app.pop_screen()  # Pop results
             self.app.pop_screen()  # Pop processing
-            self.app.pop_screen()  # Pop review
             self.app.pop_screen()  # Pop config manager
             self.app.pop_screen()  # Pop file selection
         elif event.button.id == "exit":
@@ -261,6 +263,7 @@ class ResultsScreen(Screen):
             def __init__(self):
                 super().__init__()
                 self._last_value = ""
+                self._escape_count = 0
 
             def compose(self) -> ComposeResult:
                 with Container(classes="container"):
@@ -288,6 +291,22 @@ class ResultsScreen(Screen):
                     self._last_value = cleaned
                     event.input.value = cleaned
 
+            def on_key(self, event) -> None:
+                """Handle key presses for double-escape to clear input."""
+                if event.key == "escape":
+                    focused = self.focused
+                    if focused and isinstance(focused, Input):
+                        self._escape_count += 1
+                        if self._escape_count >= 2:
+                            focused.value = ""
+                            self._escape_count = 0
+                            event.prevent_default()
+                            event.stop()
+                        else:
+                            self.set_timer(1.0, lambda: setattr(self, '_escape_count', 0))
+                else:
+                    self._escape_count = 0
+
             def on_button_pressed(self, event: Button.Pressed) -> None:
                 if event.button.id == "save":
                     input_widget = self.query_one("#excel-path", Input)
@@ -314,6 +333,7 @@ class ResultsScreen(Screen):
             def __init__(self):
                 super().__init__()
                 self._last_value = ""
+                self._escape_count = 0
 
             def compose(self) -> ComposeResult:
                 with Container(classes="container"):
@@ -341,6 +361,22 @@ class ResultsScreen(Screen):
                 if cleaned != current:
                     self._last_value = cleaned
                     event.input.value = cleaned
+
+            def on_key(self, event) -> None:
+                """Handle key presses for double-escape to clear input."""
+                if event.key == "escape":
+                    focused = self.focused
+                    if focused and isinstance(focused, Input):
+                        self._escape_count += 1
+                        if self._escape_count >= 2:
+                            focused.value = ""
+                            self._escape_count = 0
+                            event.prevent_default()
+                            event.stop()
+                        else:
+                            self.set_timer(1.0, lambda: setattr(self, '_escape_count', 0))
+                else:
+                    self._escape_count = 0
 
             def on_button_pressed(self, event: Button.Pressed) -> None:
                 if event.button.id == "export":
@@ -372,7 +408,6 @@ class ResultsScreen(Screen):
         self.app.state.reset()
         self.app.pop_screen()  # Pop results
         self.app.pop_screen()  # Pop processing
-        self.app.pop_screen()  # Pop review
         self.app.pop_screen()  # Pop config manager
         self.app.pop_screen()  # Pop file selection
 

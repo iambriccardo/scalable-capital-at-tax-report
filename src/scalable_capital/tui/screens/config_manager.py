@@ -22,7 +22,7 @@ class ConfigManagerScreen(Screen):
         Binding("enter", "edit_security", "Edit", show=False),
         Binding("s", "save_config", "Save Config"),
         Binding("l", "load_config", "Load Config"),
-        Binding("r", "review", "Review & Calculate"),
+        Binding("r", "review", "Calculate"),
         Binding("escape", "back", "Back"),
     ]
 
@@ -50,7 +50,7 @@ class ConfigManagerScreen(Screen):
                     yield Button("Edit Selected", id="edit", variant="default", disabled=True)
                     yield Button("Delete Selected", id="delete", variant="error", disabled=True)
                     yield Button("Save Config", id="save", variant="default")
-                    yield Button("Review & Calculate", id="review", variant="success")
+                    yield Button("Calculate", id="review", variant="success")
 
                 yield Static("", classes="footer", id="status")
 
@@ -133,8 +133,8 @@ class ConfigManagerScreen(Screen):
             if not self.app.state.configs:
                 self.app.notify("Please add at least one security", severity="warning")
                 return
-            from scalable_capital.tui.screens.review import ReviewScreen
-            self.app.push_screen(ReviewScreen())
+            from scalable_capital.tui.screens.processing import ProcessingScreen
+            self.app.push_screen(ProcessingScreen())
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in the table."""
@@ -187,6 +187,7 @@ class ConfigManagerScreen(Screen):
             def __init__(self):
                 super().__init__()
                 self._last_value = ""
+                self._escape_count = 0
 
             def compose(self) -> ComposeResult:
                 with Container(classes="container"):
@@ -214,6 +215,22 @@ class ConfigManagerScreen(Screen):
                 if cleaned != current:
                     self._last_value = cleaned
                     event.input.value = cleaned
+
+            def on_key(self, event) -> None:
+                """Handle key presses for double-escape to clear input."""
+                if event.key == "escape":
+                    focused = self.focused
+                    if focused and isinstance(focused, Input):
+                        self._escape_count += 1
+                        if self._escape_count >= 2:
+                            focused.value = ""
+                            self._escape_count = 0
+                            event.prevent_default()
+                            event.stop()
+                        else:
+                            self.set_timer(1.0, lambda: setattr(self, '_escape_count', 0))
+                else:
+                    self._escape_count = 0
 
             def on_button_pressed(self, event: Button.Pressed) -> None:
                 if event.button.id == "save":
@@ -243,6 +260,7 @@ class ConfigManagerScreen(Screen):
             def __init__(self):
                 super().__init__()
                 self._last_value = ""
+                self._escape_count = 0
 
             def compose(self) -> ComposeResult:
                 with Container(classes="container"):
@@ -270,6 +288,22 @@ class ConfigManagerScreen(Screen):
                 if cleaned != current:
                     self._last_value = cleaned
                     event.input.value = cleaned
+
+            def on_key(self, event) -> None:
+                """Handle key presses for double-escape to clear input."""
+                if event.key == "escape":
+                    focused = self.focused
+                    if focused and isinstance(focused, Input):
+                        self._escape_count += 1
+                        if self._escape_count >= 2:
+                            focused.value = ""
+                            self._escape_count = 0
+                            event.prevent_default()
+                            event.stop()
+                        else:
+                            self.set_timer(1.0, lambda: setattr(self, '_escape_count', 0))
+                else:
+                    self._escape_count = 0
 
             def on_button_pressed(self, event: Button.Pressed) -> None:
                 if event.button.id == "load":
@@ -341,12 +375,12 @@ class ConfigManagerScreen(Screen):
         self._load_config()
 
     def action_review(self) -> None:
-        """Go to review screen (keyboard shortcut)."""
+        """Start calculation (keyboard shortcut)."""
         if not self.app.state.configs:
             self.app.notify("Please add at least one security", severity="warning")
             return
-        from scalable_capital.tui.screens.review import ReviewScreen
-        self.app.push_screen(ReviewScreen())
+        from scalable_capital.tui.screens.processing import ProcessingScreen
+        self.app.push_screen(ProcessingScreen())
 
     def action_back(self) -> None:
         """Go back (keyboard shortcut)."""

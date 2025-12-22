@@ -17,7 +17,6 @@ class FileSelectionScreen(Screen):
     """Screen for selecting the transaction file (CSV or JSON)."""
 
     BINDINGS = [
-        Binding("p", "preview", "Preview File"),
         Binding("enter", "next", "Next"),
         Binding("escape", "back", "Back"),
     ]
@@ -25,6 +24,10 @@ class FileSelectionScreen(Screen):
     def __init__(self):
         super().__init__()
         self._last_value = ""
+        self._escape_count = 0
+        self._current_file_type = None  # Track if current file is 'csv' or 'json'
+        self._last_previewed_file = None  # Track last previewed file to avoid duplicate previews
+        self._updating_input = False  # Flag to prevent recursion when we update the input
 
     def compose(self) -> ComposeResult:
         """Compose the file selection screen."""
@@ -42,8 +45,7 @@ class FileSelectionScreen(Screen):
 
                 with Horizontal():
                     yield Button("Back", id="back", variant="default")
-                    yield Button("Load & Preview", id="preview", variant="primary")
-                    yield Button("Next", id="next", variant="success")
+                    yield Button("Continue", id="next", variant="success")
 
                 yield Static("", classes="footer", id="status")
 
@@ -57,10 +59,15 @@ class FileSelectionScreen(Screen):
         if self.app.state.transaction_file:
             input_widget.value = self.app.state.transaction_file
             self._preview_file(self.app.state.transaction_file)
+            self._last_previewed_file = self.app.state.transaction_file
 
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle input changes to clean up file paths from drag-and-drop."""
         if event.input.id != "file-path":
+            return
+
+        # Skip if we're currently updating the input to avoid recursion
+        if self._updating_input:
             return
 
         current = event.value
@@ -74,18 +81,42 @@ class FileSelectionScreen(Screen):
 
         # Only update if we actually changed something
         if cleaned != current:
+            self._updating_input = True
             self._last_value = cleaned
             event.input.value = cleaned
+            self._updating_input = False
+            # After cleaning, process the cleaned value
+            current = cleaned
+
+        # Update last value
+        self._last_value = cleaned
+
+        # Only preview if it's a different file than last time AND has a valid extension
+        if cleaned and cleaned != self._last_previewed_file:
+            # Check if path looks like a file (has .csv or .json extension)
+            if cleaned.lower().endswith(('.csv', '.json')):
+                if Path(cleaned).exists():
+                    # Additional check: make sure it's not a directory
+                    if Path(cleaned).is_file():
+                        self._preview_file(cleaned)
+                        self._last_previewed_file = cleaned
+                    else:
+                        # It's a directory, ignore
+                        pass
+                else:
+                    # File doesn't exist, clear preview
+                    if self._last_previewed_file is not None:
+                        self._clear_preview()
+                    self._last_previewed_file = cleaned  # Remember this failed path
+        elif not cleaned and self._last_previewed_file is not None:
+            # Input was cleared, reset preview
+            self._clear_preview()
+            self._last_previewed_file = None
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         if event.button.id == "back":
             self.app.pop_screen()
-        elif event.button.id == "preview":
-            input_widget = self.query_one("#file-path", Input)
-            file_path = input_widget.value.strip()
-            if file_path:
-                self._preview_file(file_path)
         elif event.button.id == "next":
             input_widget = self.query_one("#file-path", Input)
             file_path = input_widget.value.strip()
@@ -118,6 +149,16 @@ class FileSelectionScreen(Screen):
         except (json.JSONDecodeError, UnicodeDecodeError):
             return False
 
+    def _clear_preview(self) -> None:
+        """Clear the preview table and reset button."""
+        table = self.query_one("#preview-table", DataTable)
+        table.clear(columns=True)
+        status = self.query_one("#status", Static)
+        status.update("")
+        self._current_file_type = None
+        next_btn = self.query_one("#next", Button)
+        next_btn.label = "Continue"
+
     def _preview_file(self, file_path: str) -> None:
         """Preview the file content in a DataTable."""
         if not Path(file_path).exists():
@@ -128,10 +169,20 @@ class FileSelectionScreen(Screen):
         table.clear(columns=True)
 
         try:
-            if self._is_json_file(file_path):
+            is_json = self._is_json_file(file_path)
+            if is_json:
                 self._preview_json(file_path, table)
+                self._current_file_type = 'json'
             else:
                 self._preview_csv(file_path, table)
+                self._current_file_type = 'csv'
+
+            # Update button text based on file type
+            next_btn = self.query_one("#next", Button)
+            if is_json:
+                next_btn.label = "Convert & Continue"
+            else:
+                next_btn.label = "Continue"
 
             status = self.query_one("#status", Static)
             status.update(f"Preview loaded: {Path(file_path).name}")
@@ -241,13 +292,6 @@ class FileSelectionScreen(Screen):
         status.update(status_message)
 
     # Keyboard action handlers
-    def action_preview(self) -> None:
-        """Preview file (keyboard shortcut)."""
-        input_widget = self.query_one("#file-path", Input)
-        file_path = input_widget.value.strip()
-        if file_path:
-            self._preview_file(file_path)
-
     def action_next(self) -> None:
         """Go to next screen (keyboard shortcut)."""
         input_widget = self.query_one("#file-path", Input)
@@ -273,3 +317,23 @@ class FileSelectionScreen(Screen):
     def action_back(self) -> None:
         """Go back (keyboard shortcut)."""
         self.app.pop_screen()
+
+    def on_key(self, event) -> None:
+        """Handle key presses for double-escape to clear input."""
+        if event.key == "escape":
+            # Check if an input field is focused
+            focused = self.focused
+            if focused and isinstance(focused, Input):
+                self._escape_count += 1
+                if self._escape_count >= 2:
+                    # Clear the input on double escape
+                    focused.value = ""
+                    self._escape_count = 0
+                    event.prevent_default()
+                    event.stop()
+                else:
+                    # Set a timer to reset escape count after 1 second
+                    self.set_timer(1.0, lambda: setattr(self, '_escape_count', 0))
+        else:
+            # Reset escape count on any other key
+            self._escape_count = 0
